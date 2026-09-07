@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sorteio Interativo de Live</title>
+  <title>Painel do Sorteio - TikTok Live</title>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -11,6 +11,7 @@
       --accent-color: #00f2fe;
       --text-color: #f8fafc;
       --success-color: #22c55e;
+      --danger-color: #ef4444;
     }
 
     body {
@@ -25,10 +26,21 @@
 
     .container {
       width: 100%;
-      max-width: 800px;
+      max-width: 900px;
       display: flex;
       flex-direction: column;
       gap: 20px;
+    }
+
+    /* Status da Conexao com Render */
+    #statusServer {
+      text-align: center;
+      padding: 10px;
+      background: #eab308;
+      color: #000;
+      font-weight: bold;
+      border-radius: 8px;
+      font-size: 0.95rem;
     }
 
     .card {
@@ -44,8 +56,8 @@
     }
 
     .header-prize h1 {
-      margin: 0;
-      font-size: 1.5rem;
+      margin: 0 0 10px 0;
+      font-size: 1.3rem;
       color: #94a3b8;
     }
 
@@ -65,11 +77,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 1.2rem;
+      flex-wrap: wrap;
+      gap: 15px;
     }
 
     .timer-display {
-      font-size: 2rem;
+      font-size: 2.2rem;
       font-weight: bold;
       color: var(--accent-color);
     }
@@ -77,13 +90,13 @@
     .progress-container {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
     .progress-bar-bg {
       background: #334155;
-      border-radius: 10px;
-      height: 24px;
+      border-radius: 12px;
+      height: 30px;
       overflow: hidden;
       position: relative;
     }
@@ -92,27 +105,46 @@
       background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
       height: 100%;
       width: 0%;
-      transition: width 0.3s ease;
+      transition: width 0.4s ease;
     }
 
     .progress-text {
       position: absolute;
       width: 100%;
       text-align: center;
-      top: 2px;
+      top: 4px;
       font-weight: bold;
-      font-size: 0.9rem;
-      text-shadow: 1px 1px 2px #000;
+      font-size: 1rem;
+      text-shadow: 1px 1px 3px #000;
     }
 
-    .participant-item {
-      background: #334155;
-      border-radius: 8px;
+    /* Tabela de Participantes */
+    .table-container {
+      max-height: 350px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th, td {
       padding: 12px;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+
+    th {
+      background-color: #0f172a;
+      color: var(--accent-color);
+      position: sticky;
+      top: 0;
+    }
+
+    tr:hover {
+      background-color: #334155;
     }
 
     .badge {
@@ -120,37 +152,39 @@
       border-radius: 4px;
       font-size: 0.8rem;
       font-weight: bold;
-    }
-
-    .badge-check {
       background-color: var(--success-color);
       color: #fff;
     }
 
-    .badge-pending {
-      background-color: #eab308;
-      color: #000;
-    }
-
-    .tasks-list {
-      display: flex;
-      gap: 10px;
-      font-size: 0.85rem;
-      margin-top: 5px;
-    }
-
-    button {
+    .btn {
       background: var(--accent-color);
       border: none;
       color: #000;
-      padding: 10px 20px;
+      padding: 10px 18px;
       font-weight: bold;
       border-radius: 6px;
       cursor: pointer;
     }
 
-    button:hover {
+    .btn:hover {
       opacity: 0.9;
+    }
+
+    .btn-danger {
+      background: var(--danger-color);
+      color: #fff;
+    }
+
+    .btn-sim {
+      background: #a855f7;
+      color: #fff;
+    }
+
+    .actions-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 15px;
     }
   </style>
 </head>
@@ -158,18 +192,23 @@
 
 <div class="container">
 
-  <!-- topo: premio (editável) -->
+  <!-- Status do Servidor Backend -->
+  <div id="statusServer">
+    ⏳ Conectando ao servidor Render... (Aguarde até 1 minuto caso o servidor esteja inicializando)
+  </div>
+
+  <!-- Topo: Premio Editavel -->
   <div class="card header-prize">
     <h1>🎁 PRÊMIO DO SORTEIO</h1>
     <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50">
   </div>
 
-  <!-- configuracoes e cronometro -->
+  <!-- Configuracoes de Tempo e Cronometro -->
   <div class="card timer-section">
     <div>
-      <label>Duração (Minutos): </label>
-      <input type="number" id="timerMinutes" value="10" style="width: 60px; padding: 5px;">
-      <button onclick="startTimer()">Iniciar Sorteio</button>
+      <label><strong>Duração do Sorteio (Minutos):</strong> </label>
+      <input type="number" id="timerMinutes" value="10" style="width: 60px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
+      <button class="btn" onclick="startTimer()">Iniciar Cronômetro</button>
     </div>
     <div>
       <span>Tempo Restante:</span>
@@ -177,57 +216,147 @@
     </div>
   </div>
 
-  <!-- meta de moedas (editável) -->
+  <!-- Meta de Presentes/Moedas -->
   <div class="card progress-container">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h3>🎯 Meta de Moedas do TikTok para Habilitar Entrada</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+      <h3>🎯 Meta de Moedas por Vaga no Sorteio</h3>
       <div>
-        <label>Meta: </label>
-        <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 60px; padding: 5px;">
+        <label><strong>Moedas Requeridas:</strong> </label>
+        <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 60px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
       </div>
     </div>
 
-    <!-- barra de progresso -->
+    <!-- Barra de Progresso em Tempo Real -->
     <div class="progress-bar-bg">
       <div id="progressBarFill" class="progress-bar-fill"></div>
-      <div id="progressText" class="progress-text">0 / 30 Moedas Requeridas</div>
+      <div id="progressText" class="progress-text">0 / 30 Moedas Acumuladas no Momento</div>
     </div>
   </div>
 
-  <!-- lista de participantes -->
+  <!-- Relacao de Participantes (Nick TikTok + Total doado) -->
   <div class="card">
-    <h3>🎟️ Lista de Participantes Qualificados</h3>
-    <div id="participantsList">
-      <!-- Exemplo de participante gerado dinamicamente -->
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3>🎟️ Lista de Qualificados para o Sorteio (<span id="totalParticipants">0</span>)</h3>
+      <button class="btn btn-danger" onclick="clearList()">Limpar Lista</button>
     </div>
-    <button onclick="simulateGift()" style="margin-top: 10px; background: #a855f7; color: #fff;">
-      ⚡ Simular Envio de Presente (Teste)
-    </button>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Usuário do TikTok</th>
+            <th>Moedas Enviadas</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="participantsTable">
+          <!-- Linhas geradas dinamicamente quando chegarem presentes da live -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn btn-sim" onclick="simulateGift(10)">⚡ Simular +10 Moedas (Teste)</button>
+      <button class="btn" onclick="pickWinner()" style="background: #22c55e; color: #fff; font-size: 1.1rem;">🎲 SORTEAR GANHADOR!</button>
+    </div>
   </div>
 
 </div>
 
+<!-- Socket.IO -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 <script>
+  // ATENÇÃO: Substitua a URL abaixo pela URL gerada no seu Render.com
+  const RENDER_URL = 'https://seu-servidor-backend.onrender.com';
+
+  const socket = io(RENDER_URL);
+  
   let targetCoins = 30;
   let currentCoins = 0;
   let timerInterval = null;
+  
+  // Guardará todos os qualificados { username, totalCoins }
+  let participants = [];
 
-  // Atualiza meta configurada pelo streamer
+  const statusDiv = document.getElementById('statusServer');
+
+  // Controle de Conexão com o Render
+  socket.on('connect', () => {
+    statusDiv.style.backgroundColor = '#22c55e';
+    statusDiv.style.color = '#fff';
+    statusDiv.innerText = '🟢 Conectado à Live do TikTok via Render com Sucesso!';
+  });
+
+  socket.on('disconnect', () => {
+    statusDiv.style.backgroundColor = '#ef4444';
+    statusDiv.style.color = '#fff';
+    statusDiv.innerText = '🔴 Servidor Desconectado. Verifique se o Render está ativo.';
+  });
+
+  // Atualiza meta configurada
   function updateGoal() {
     targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
-    updateProgress(0);
+    renderProgress();
   }
 
-  // Atualiza barra de progresso
-  function updateProgress(addedCoins) {
-    currentCoins += addedCoins;
+  // Atualiza a barra visual
+  function renderProgress() {
     const percentage = Math.min(100, (currentCoins / targetCoins) * 100);
-    
     document.getElementById('progressBarFill').style.width = percentage + '%';
-    document.getElementById('progressText').innerText = `${currentCoins} / ${targetCoins} Moedas`;
+    document.getElementById('progressText').innerText = `${currentCoins} / ${targetCoins} Moedas Acumuladas`;
   }
 
-  // Cronômetro
+  // Processa presente recebido (seja da live real ou da simulacao)
+  function handleGift(username, coinsReceived) {
+    currentCoins += coinsReceived;
+
+    // Se bateu a meta configurada (ex: 30 moedas)
+    if (currentCoins >= targetCoins) {
+      addParticipant(username, targetCoins);
+      currentCoins = currentCoins - targetCoins; // Carrega o excesso de moedas para a próxima vaga
+    }
+
+    renderProgress();
+  }
+
+  // Adiciona espectador na tabela de qualificados
+  function addParticipant(username, coins) {
+    let existingUser = participants.find(p => p.username === username);
+
+    if (existingUser) {
+      existingUser.totalCoins += coins;
+    } else {
+      participants.push({
+        username: username,
+        totalCoins: coins
+      });
+    }
+
+    renderTable();
+  }
+
+  // Renderiza a tabela na tela
+  function renderTable() {
+    const tbody = document.getElementById('participantsTable');
+    tbody.innerHTML = '';
+
+    participants.forEach((p, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${index + 1}</strong></td>
+        <td><strong>@${p.username}</strong></td>
+        <td>${p.totalCoins} moedas</td>
+        <td><span class="badge">Qualificado</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('totalParticipants').innerText = participants.length;
+  }
+
+  // Cronômetro do Sorteio
   function startTimer() {
     clearInterval(timerInterval);
     let duration = parseInt(document.getElementById('timerMinutes').value) * 60;
@@ -241,65 +370,48 @@
 
       if (--duration < 0) {
         clearInterval(timerInterval);
-        alert("⏱️ O tempo do sorteio acabou!");
+        alert("⏱️ O tempo do sorteio encerrou! Você já pode realizar o sorteio entre os participantes da lista.");
       }
     }, 1000);
   }
 
-  // Adicionar participante à lista após cumprir a meta
-  function addParticipant(username, tiktokFollow, kickFollow, twitchFollow) {
-    const list = document.getElementById('participantsList');
-    
-    const item = document.createElement('div');
-    item.className = 'participant-item';
-    
-    item.innerHTML = `
-      <div>
-        <strong>@${username}</strong>
-        <div class="tasks-list">
-          <span class="badge ${tiktokFollow ? 'badge-check' : 'badge-pending'}">TikTok ${tiktokFollow ? '✓' : '✗'}</span>
-          <span class="badge ${kickFollow ? 'badge-check' : 'badge-pending'}">Kick ${kickFollow ? '✓' : '✗'}</span>
-          <span class="badge ${twitchFollow ? 'badge-check' : 'badge-pending'}">Twitch ${twitchFollow ? '✓' : '✗'}</span>
-        </div>
-      </div>
-      <span class="badge badge-check">Qualificado</span>
-    `;
-    
-    list.appendChild(item);
-  }
-
-  // Função para simular eventos de presente do TikTok
-  function simulateGift() {
-    updateProgress(10);
-    if (currentCoins >= targetCoins) {
-      const mockUser = "Usuario_" + Math.floor(Math.random() * 1000);
-      addParticipant(mockUser, true, true, true);
-      currentCoins = 0; // Reseta para a próxima entrada se necessário
-      updateProgress(0);
+  // Sortear um ganhador da relação
+  function pickWinner() {
+    if (participants.length === 0) {
+      alert("Nenhum participante qualificado na lista ainda!");
+      return;
     }
+
+    const randomIndex = Math.floor(Math.random() * participants.length);
+    const winner = participants[randomIndex];
+    const prize = document.getElementById('prizeInput').value;
+
+    alert(`🎉 GANHADOR DO SORTEIO!\n\nUsuário: @${winner.username}\nPrêmio: ${prize}`);
   }
-</script>
-<!-- Biblioteca do Socket.IO -->
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
-<script>
-  // Substitua o link abaixo pela URL do seu servidor backend quando ele estiver no ar
-  const socket = io('https://sorteio-backend-live.onrender.com');
-
-  // Escuta o evento de presente vindo do servidor Node.js
-  socket.on('giftReceived', (data) => {
-    console.log("Presente recebido:", data);
-    
-    // Adiciona as moedas recebidas na barra de progresso
-    updateProgress(data.coins);
-
-    // Se atingir a meta, adiciona o usuário à lista e reseta a barra
-    if (currentCoins >= targetCoins) {
-      addParticipant(data.username, true, true, true);
+  // Limpar lista
+  function clearList() {
+    if (confirm("Deseja realmente limpar a lista de participantes?")) {
+      participants = [];
       currentCoins = 0;
-      updateProgress(0);
+      renderProgress();
+      renderTable();
     }
+  }
+
+  // Escuta o envio do Render quando chega presente na live real
+  socket.on('giftReceived', (data) => {
+    console.log("Presente detectado:", data);
+    handleGift(data.username, data.coins);
   });
+
+  // Função de Teste Manual
+  function simulateGift(coins) {
+    const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream"];
+    const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
+    handleGift(randomUser, coins);
+  }
 </script>
+
 </body>
 </html>
