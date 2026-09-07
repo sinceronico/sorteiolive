@@ -264,12 +264,12 @@
 
 </div>
 
-<!-- Socket.IO -->
+<!-- Socket.IO Client -->
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
 <script>
-  // ATENÇÃO: Substitua a URL abaixo pela URL gerada no seu Render.com
-  const RENDER_URL = 'https://seu-servidor-backend.onrender.com';
+  // Conexao com seu Render
+  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
 
   const socket = io(RENDER_URL);
   
@@ -277,16 +277,15 @@
   let currentCoins = 0;
   let timerInterval = null;
   
-  // Guardará todos os qualificados { username, totalCoins }
   let participants = [];
 
   const statusDiv = document.getElementById('statusServer');
 
-  // Controle de Conexão com o Render
+  // Controle de Conexão
   socket.on('connect', () => {
     statusDiv.style.backgroundColor = '#22c55e';
     statusDiv.style.color = '#fff';
-    statusDiv.innerText = '🟢 Conectado à Live do TikTok via Render com Sucesso!';
+    statusDiv.innerText = '🟢 Conectado ao Servidor Render com Sucesso!';
   });
 
   socket.on('disconnect', () => {
@@ -295,33 +294,28 @@
     statusDiv.innerText = '🔴 Servidor Desconectado. Verifique se o Render está ativo.';
   });
 
-  // Atualiza meta configurada
   function updateGoal() {
     targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
     renderProgress();
   }
 
-  // Atualiza a barra visual
   function renderProgress() {
     const percentage = Math.min(100, (currentCoins / targetCoins) * 100);
     document.getElementById('progressBarFill').style.width = percentage + '%';
     document.getElementById('progressText').innerText = `${currentCoins} / ${targetCoins} Moedas Acumuladas`;
   }
 
-  // Processa presente recebido (seja da live real ou da simulacao)
   function handleGift(username, coinsReceived) {
     currentCoins += coinsReceived;
 
-    // Se bateu a meta configurada (ex: 30 moedas)
     if (currentCoins >= targetCoins) {
       addParticipant(username, targetCoins);
-      currentCoins = currentCoins - targetCoins; // Carrega o excesso de moedas para a próxima vaga
+      currentCoins = currentCoins - targetCoins;
     }
 
     renderProgress();
   }
 
-  // Adiciona espectador na tabela de qualificados
   function addParticipant(username, coins) {
     let existingUser = participants.find(p => p.username === username);
 
@@ -337,7 +331,6 @@
     renderTable();
   }
 
-  // Renderiza a tabela na tela
   function renderTable() {
     const tbody = document.getElementById('participantsTable');
     tbody.innerHTML = '';
@@ -356,7 +349,6 @@
     document.getElementById('totalParticipants').innerText = participants.length;
   }
 
-  // Cronômetro do Sorteio
   function startTimer() {
     clearInterval(timerInterval);
     let duration = parseInt(document.getElementById('timerMinutes').value) * 60;
@@ -370,12 +362,11 @@
 
       if (--duration < 0) {
         clearInterval(timerInterval);
-        alert("⏱️ O tempo do sorteio encerrou! Você já pode realizar o sorteio entre os participantes da lista.");
+        alert("⏱️ O tempo do sorteio encerrou!");
       }
     }, 1000);
   }
 
-  // Sortear um ganhador da relação
   function pickWinner() {
     if (participants.length === 0) {
       alert("Nenhum participante qualificado na lista ainda!");
@@ -389,7 +380,6 @@
     alert(`🎉 GANHADOR DO SORTEIO!\n\nUsuário: @${winner.username}\nPrêmio: ${prize}`);
   }
 
-  // Limpar lista
   function clearList() {
     if (confirm("Deseja realmente limpar a lista de participantes?")) {
       participants = [];
@@ -399,13 +389,11 @@
     }
   }
 
-  // Escuta o envio do Render quando chega presente na live real
   socket.on('giftReceived', (data) => {
     console.log("Presente detectado:", data);
     handleGift(data.username, data.coins);
   });
 
-  // Função de Teste Manual
   function simulateGift(coins) {
     const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream"];
     const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
