@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel do Sorteio - TikTok Live</title>
+  <title>Painel do Sorteio - Números da Sorte</title>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -26,7 +26,7 @@
 
     .container {
       width: 100%;
-      max-width: 900px;
+      max-width: 950px;
       display: flex;
       flex-direction: column;
       gap: 20px;
@@ -86,79 +86,37 @@
       color: var(--accent-color);
     }
 
-    .progress-container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .progress-bar-bg {
-      background: #334155;
-      border-radius: 12px;
-      height: 30px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .progress-bar-fill {
-      background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
-      height: 100%;
-      width: 0%;
-      transition: width 0.4s ease;
-    }
-
-    .progress-text {
-      position: absolute;
-      width: 100%;
-      text-align: center;
-      top: 4px;
-      font-weight: bold;
-      font-size: 1rem;
-      text-shadow: 1px 1px 3px #000;
-    }
-
-    /* ESTILOS DA RODA DO SORTEIO */
-    .wheel-section {
+    /* CONTAINER DO PAINEL DIGITAL DO SORTEIO */
+    .raffle-display-section {
       display: flex;
       flex-direction: column;
       align-items: center;
-      position: relative;
-      margin: 20px 0;
+      justify-content: center;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      border: 2px solid #334155;
+      padding: 30px;
+      border-radius: 16px;
+      text-align: center;
     }
 
-    .wheel-wrapper {
-      position: relative;
-      width: 320px;
-      height: 320px;
+    .digital-counter {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 4.5rem;
+      font-weight: 900;
+      color: #00f2fe;
+      background: #020617;
+      padding: 15px 40px;
+      border-radius: 12px;
+      border: 2px solid var(--accent-color);
+      box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+      letter-spacing: 4px;
+      margin: 15px 0;
+      min-width: 200px;
     }
 
-    /* Ponteiro / Seletor Superior */
-    .wheel-pointer {
-      position: absolute;
-      top: -15px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 0;
-      height: 0;
-      border-left: 18px solid transparent;
-      border-right: 18px solid transparent;
-      border-top: 30px solid #ef4444;
-      z-index: 10;
-      filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.5));
-    }
-
-    /* Canvas da Roda */
-    #wheelCanvas {
-      width: 320px;
-      height: 320px;
-      border-radius: 50%;
-      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
-      transition: transform 5s cubic-bezier(0.15, 0.9, 0.2, 1);
-    }
-
-    /* Tabela de Participantes */
+    /* Tabela de Números da Sorte */
     .table-container {
-      max-height: 250px;
+      max-height: 300px;
       overflow-y: auto;
       margin-top: 10px;
     }
@@ -181,13 +139,16 @@
       top: 0;
     }
 
-    .badge {
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
+    .ticket-badge {
+      display: inline-block;
+      background: #38bdf8;
+      color: #0f172a;
       font-weight: bold;
-      background-color: var(--success-color);
-      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 1.05rem;
+      margin: 2px;
     }
 
     .btn {
@@ -264,7 +225,13 @@
     .winner-title {
       font-size: 1.5rem;
       color: #94a3b8;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
+    }
+
+    .winner-ticket-highlight {
+      font-size: 2rem;
+      color: #eab308;
+      font-weight: bold;
     }
 
     .winner-name {
@@ -315,36 +282,32 @@
     </div>
   </div>
 
-  <!-- Meta de Presentes/Moedas -->
-  <div class="card progress-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-      <h3>🎯 Meta de Moedas por Vaga no Sorteio</h3>
+  <!-- Configuração do Valor de Moedas por Número -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
       <div>
-        <label><strong>Moedas Requeridas:</strong> </label>
-        <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 60px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
+        <h3 style="margin: 0;">🪙 Cota para Número da Sorte</h3>
+        <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Cada envio desta quantidade gera +1 Número da Sorte automaticamente.</p>
+      </div>
+      <div>
+        <label><strong>Moedas por Número:</strong> </label>
+        <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 70px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
       </div>
     </div>
-
-    <div class="progress-bar-bg">
-      <div id="progressBarFill" class="progress-bar-fill"></div>
-      <div id="progressText" class="progress-text">0 / 30 Moedas Acumuladas no Momento</div>
-    </div>
   </div>
 
-  <!-- Roda do Sorteio -->
-  <div class="card wheel-section">
-    <h3>🎡 Roda dos Participantes</h3>
-    <div class="wheel-wrapper">
-      <div class="wheel-pointer"></div>
-      <canvas id="wheelCanvas" width="320" height="320"></canvas>
-    </div>
+  <!-- Painel Digital de Animação do Sorteio -->
+  <div class="card raffle-display-section">
+    <h3 style="margin: 0; color: #94a3b8;">🎰 SORTEADOR DIGITAL</h3>
+    <div class="digital-counter" id="digitalCounter">#000</div>
+    <p style="color: #64748b; margin: 0;">Total de Bilhetes Emitidos: <strong id="totalTicketsCount" style="color: #00f2fe;">0</strong></p>
   </div>
 
-  <!-- Relação de Participantes -->
+  <!-- Tabela de Participantes e Números da Sorte -->
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h3>🎟️ Lista de Qualificados (<span id="totalParticipants">0</span>)</h3>
-      <button class="btn btn-danger" onclick="clearList()">Limpar Lista</button>
+      <h3>🎟️ Lista de Participantes (<span id="totalParticipants">0</span>)</h3>
+      <button class="btn btn-danger" onclick="clearList()">Limpar Todos os Dados</button>
     </div>
 
     <div class="table-container">
@@ -353,8 +316,9 @@
           <tr>
             <th>#</th>
             <th>Usuário do TikTok</th>
-            <th>Moedas Enviadas</th>
-            <th>Status</th>
+            <th>Total Moedas</th>
+            <th>Qtd. Bilhetes</th>
+            <th>Números da Sorte</th>
           </tr>
         </thead>
         <tbody id="participantsTable">
@@ -363,17 +327,21 @@
     </div>
 
     <div class="actions-bar">
-      <button class="btn btn-sim" onclick="simulateGift(10)">⚡ Simular +10 Moedas (Teste)</button>
-      <button class="btn" id="spinBtn" onclick="spinWheel()" style="background: #22c55e; color: #fff; font-size: 1.1rem;">🎲 GIRAR RODA E SORTEAR!</button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-sim" onclick="simulateGift(30)">⚡ Simular +30 Moedas</button>
+        <button class="btn btn-sim" onclick="simulateGift(90)">🚀 Simular +90 Moedas (3 Números)</button>
+      </div>
+      <button class="btn" id="drawBtn" onclick="startDrawAnimation()" style="background: #22c55e; color: #fff; font-size: 1.15rem; padding: 12px 24px;">🎲 SORTEAR NÚMERO!</button>
     </div>
   </div>
 
 </div>
 
-<!-- Modal com Nome Grande do Ganhador no Centro da Tela -->
+<!-- Modal com Nome e Número Grande no Centro da Tela -->
 <div class="modal-overlay" id="winnerModal">
   <div class="modal-card">
     <div class="winner-title">🎉 GRANDE GANHADOR DO SORTEIO!</div>
+    <div class="winner-ticket-highlight" id="modalWinnerTicket">NÚMERO #000</div>
     <div class="winner-name" id="winnerName">@usuario</div>
     <div class="winner-prize" id="winnerPrize">Prêmio: Skin Lendária</div>
     <br>
@@ -389,16 +357,13 @@
   const socket = io(RENDER_URL);
   
   let targetCoins = 30;
-  let currentCoins = 0;
   let timerInterval = null;
-  let participants = [];
   
-  // Variáveis da Roda
-  let currentRotation = 0;
-  let isSpinning = false;
-  const canvas = document.getElementById('wheelCanvas');
-  const ctx = canvas.getContext('2d');
-  const colors = ['#00f2fe', '#4facfe', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#6366f1'];
+  // Estrutura de dados
+  let participants = []; // { username, totalCoins, tickets: [1, 2, 3] }
+  let allIssuedTickets = []; // [{ ticketNum: 1, username: 'nick' }]
+  let nextTicketNumber = 1;
+  let isDrawing = false;
 
   const statusDiv = document.getElementById('statusServer');
 
@@ -416,40 +381,35 @@
 
   function updateGoal() {
     targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
-    renderProgress();
   }
 
-  function renderProgress() {
-    const percentage = Math.min(100, (currentCoins / targetCoins) * 100);
-    document.getElementById('progressBarFill').style.width = percentage + '%';
-    document.getElementById('progressText').innerText = `${currentCoins} / ${targetCoins} Moedas Acumuladas`;
+  // Formata números para manter padrão com zeros (ex: #001, #012, #105)
+  function formatTicketNumber(num) {
+    return '#' + num.toString().padStart(3, '0');
   }
 
   function handleGift(username, coinsReceived) {
-    currentCoins += coinsReceived;
+    let user = participants.find(p => p.username === username);
 
-    if (currentCoins >= targetCoins) {
-      addParticipant(username, targetCoins);
-      currentCoins = currentCoins - targetCoins;
+    if (!user) {
+      user = { username: username, totalCoins: 0, tickets: [] };
+      participants.push(user);
     }
 
-    renderProgress();
-  }
+    user.totalCoins += coinsReceived;
 
-  function addParticipant(username, coins) {
-    let existingUser = participants.find(p => p.username === username);
+    // Calcula quantos bilhetes a pessoa tem direito no total acumulado
+    const expectedTicketsCount = Math.floor(user.totalCoins / targetCoins);
+    const newTicketsToGenerate = expectedTicketsCount - user.tickets.length;
 
-    if (existingUser) {
-      existingUser.totalCoins += coins;
-    } else {
-      participants.push({
-        username: username,
-        totalCoins: coins
-      });
+    for (let i = 0; i < newTicketsToGenerate; i++) {
+      const ticketNum = nextTicketNumber++;
+      user.tickets.push(ticketNum);
+      allIssuedTickets.push({ ticketNum: ticketNum, username: username });
     }
 
     renderTable();
-    drawWheel();
+    document.getElementById('totalTicketsCount').innerText = allIssuedTickets.length;
   }
 
   function renderTable() {
@@ -458,11 +418,18 @@
 
     participants.forEach((p, index) => {
       const tr = document.createElement('tr');
+      
+      // Gera as badges dos números da sorte
+      const ticketsHTML = p.tickets.length > 0 
+        ? p.tickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
+        : '<span style="color: #64748b; font-size: 0.85rem;">Moedas insuficientes</span>';
+
       tr.innerHTML = `
         <td><strong>${index + 1}</strong></td>
         <td><strong>@${p.username}</strong></td>
         <td>${p.totalCoins} moedas</td>
-        <td><span class="badge">Qualificado</span></td>
+        <td><strong>${p.tickets.length}</strong></td>
+        <td>${ticketsHTML}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -470,89 +437,53 @@
     document.getElementById('totalParticipants').innerText = participants.length;
   }
 
-  // Desenhar Roda de Pizza no Canvas
-  function drawWheel() {
-    const numOptions = participants.length;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = canvas.width / 2;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (numOptions === 0) {
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#334155';
-      ctx.fill();
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 16px Segoe UI';
-      ctx.textAlign = 'center';
-      ctx.fillText('Aguardando Participantes...', centerX, centerY);
+  // Animação Digital de Sorteio (5 Segundos)
+  function startDrawAnimation() {
+    if (isDrawing) return;
+    if (allIssuedTickets.length === 0) {
+      alert("Nenhum Número da Sorte foi emitido ainda! Simule envios ou receba presentes na live.");
       return;
     }
 
-    const arcSize = (2 * Math.PI) / numOptions;
+    isDrawing = true;
+    document.getElementById('drawBtn').disabled = true;
 
-    participants.forEach((p, i) => {
-      const angle = i * arcSize;
-      ctx.beginPath();
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
-      ctx.lineTo(centerX, centerY);
-      ctx.fill();
-
-      // Escrever Nomes na Roda
-      ctx.save();
-      ctx.translate(centerX, centerY);
-      ctx.rotate(angle + arcSize / 2);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 14px Segoe UI';
-      ctx.fillText('@' + p.username, radius - 15, 5);
-      ctx.restore();
-    });
-  }
-
-  // Animação de Girar a Roda (5 Segundos)
-  function spinWheel() {
-    if (isSpinning) return;
-    if (participants.length === 0) {
-      alert("Adicione participantes ou simule presentes antes de girar!");
-      return;
-    }
-
-    isSpinning = true;
-    document.getElementById('spinBtn').disabled = true;
-
-    // Escolhe um ganhador aleatório
-    const winnerIndex = Math.floor(Math.random() * participants.length);
-    const numOptions = participants.length;
-    const arcSize = 360 / numOptions;
-
-    // Calcula a rotação necessária para alinhar o setor do ganhador com o ponteiro do topo (270º no canvas)
-    const targetAngleInSector = arcSize / 2;
-    const winningSectorAngle = winnerIndex * arcSize + targetAngleInSector;
+    // Sorteia um bilhete ganhador do array oficial
+    const winningEntry = allIssuedTickets[Math.floor(Math.random() * allIssuedTickets.length)];
     
-    // 5 giros completos (1800 deg) + alinhamento
-    const extraSpins = 360 * 5; 
-    const finalAngle = extraSpins + (270 - winningSectorAngle);
+    const counterDisplay = document.getElementById('digitalCounter');
+    const startTime = Date.now();
+    const duration = 5000; // 5 segundos de animação
 
-    currentRotation += finalAngle;
-    canvas.style.transform = `rotate(${currentRotation}deg)`;
+    // Intervalo acelerado de números piscando
+    const interval = setInterval(() => {
+      const elapsedTime = Date.now() - startTime;
+      
+      // Gera um número visual aleatório para o efeito digital
+      const randomVisualNum = Math.floor(Math.random() * nextTicketNumber) + 1;
+      counterDisplay.innerText = formatTicketNumber(randomVisualNum);
 
-    // Aguarda exatamente 5 segundos (tempo definido na transição do CSS)
-    setTimeout(() => {
-      isSpinning = false;
-      document.getElementById('spinBtn').disabled = false;
-      showWinner(participants[winnerIndex]);
-    }, 5000);
+      // Finaliza exatamente após 5 segundos
+      if (elapsedTime >= duration) {
+        clearInterval(interval);
+        
+        // Fixa o resultado oficial
+        counterDisplay.innerText = formatTicketNumber(winningEntry.ticketNum);
+        
+        setTimeout(() => {
+          isDrawing = false;
+          document.getElementById('drawBtn').disabled = false;
+          showWinner(winningEntry);
+        }, 300);
+      }
+    }, 50); // Troca a cada 50ms
   }
 
-  // Exibir Modal do Vencedor no Centro da Tela
-  function showWinner(winner) {
+  // Exibe Modal do Vencedor
+  function showWinner(winningEntry) {
     const prize = document.getElementById('prizeInput').value;
-    document.getElementById('winnerName').innerText = `@${winner.username}`;
+    document.getElementById('modalWinnerTicket').innerText = `NÚMERO DA SORTE ${formatTicketNumber(winningEntry.ticketNum)}`;
+    document.getElementById('winnerName').innerText = `@${winningEntry.username}`;
     document.getElementById('winnerPrize').innerText = `Prêmio: ${prize}`;
     document.getElementById('winnerModal').classList.add('active');
   }
@@ -580,12 +511,13 @@
   }
 
   function clearList() {
-    if (confirm("Deseja realmente limpar a lista de participantes?")) {
+    if (confirm("Deseja realmente limpar todos os participantes e reiniciar os números da sorte?")) {
       participants = [];
-      currentCoins = 0;
-      renderProgress();
+      allIssuedTickets = [];
+      nextTicketNumber = 1;
+      document.getElementById('digitalCounter').innerText = '#000';
+      document.getElementById('totalTicketsCount').innerText = '0';
       renderTable();
-      drawWheel();
     }
   }
 
@@ -593,14 +525,12 @@
     handleGift(data.username, data.coins);
   });
 
+  // Funções de Simulação
   function simulateGift(coins) {
-    const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt"];
+    const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt", "julia_play", "bruno_top"];
     const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
     handleGift(randomUser, coins);
   }
-
-  // Desenhar roda inicial
-  drawWheel();
 </script>
 
 </body>
