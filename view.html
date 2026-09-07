@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acompanhamento do Sorteio - Tempo Real</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-color: #00f2fe;
+      --text-color: #f8fafc;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-prize {
+      text-align: center;
+      border: 2px solid var(--accent-color);
+    }
+
+    .header-prize h1 {
+      margin: 0 0 5px 0;
+      font-size: 1.2rem;
+      color: #94a3b8;
+    }
+
+    .prize-title {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      text-align: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .stat-box h4 {
+      margin: 0;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .stat-box span {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    .table-container {
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+    }
+
+    th {
+      background-color: #0f172a;
+      color: var(--accent-color);
+      position: sticky;
+      top: 0;
+    }
+
+    .ticket-badge {
+      display: inline-block;
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.95rem;
+      margin: 2px;
+    }
+
+    .no-ticket-badge {
+      color: #64748b;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Topo: Prêmio Atual -->
+  <div class="card header-prize">
+    <h1>🎁 PRÊMIO EM DISPUTA</h1>
+    <div class="prize-title" id="displayPrize">Carregando...</div>
+  </div>
+
+  <!-- Resumo da Cota e Bilhetes Emitidos -->
+  <div class="card stats-bar">
+    <div class="stat-box">
+      <h4>Mínimo p/ Número</h4>
+      <span id="displayTargetCoins">30</span> moedas
+    </div>
+    <div class="stat-box">
+      <h4>Total de Doadores</h4>
+      <span id="displayParticipants">0</span>
+    </div>
+    <div class="stat-box">
+      <h4>Bilhetes Emitidos</h4>
+      <span id="displayTotalTickets">0</span> / 1000
+    </div>
+  </div>
+
+  <!-- Tabela de Participantes -->
+  <div class="card">
+    <h3 style="margin: 0 0 10px 0;">📊 Relação de Participantes em Tempo Real</h3>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Usuário</th>
+            <th>Moedas Doadas</th>
+            <th>Qtd. Bilhetes</th>
+            <th>Números da Sorte</th>
+          </tr>
+        </thead>
+        <tbody id="participantsTable">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function formatTicketNumber(num) {
+    return '#' + num.toString().padStart(4, '0');
+  }
+
+  function syncData() {
+    const saved = localStorage.getItem('sorteio_tiktok_data');
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved);
+      const targetCoins = parsed.targetCoins || 30;
+      const participants = parsed.participants || [];
+      const allIssuedTickets = parsed.allIssuedTickets || [];
+      const prizeInput = parsed.prizeInput || 'Consulte o streamer';
+
+      document.getElementById('displayPrize').innerText = prizeInput;
+      document.getElementById('displayTargetCoins').innerText = targetCoins;
+      document.getElementById('displayParticipants').innerText = participants.length;
+      document.getElementById('displayTotalTickets').innerText = allIssuedTickets.length;
+
+      const tbody = document.getElementById('participantsTable');
+      tbody.innerHTML = '';
+
+      participants.forEach((p, index) => {
+        const tr = document.createElement('tr');
+        const sortedTickets = [...p.tickets].sort((a, b) => a - b);
+        
+        const ticketsHTML = sortedTickets.length > 0 
+          ? sortedTickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
+          : `<span class="no-ticket-badge">Aguardando valor mínimo (${p.totalCoins}/${targetCoins})</span>`;
+
+        tr.innerHTML = `
+          <td><strong>${index + 1}</strong></td>
+          <td><strong>@${p.username}</strong></td>
+          <td>${p.totalCoins} moedas</td>
+          <td><strong>${p.tickets.length}</strong></td>
+          <td>${ticketsHTML}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      console.error("Erro ao sincronizar dados", e);
+    }
+  }
+
+  // Sincroniza a cada 2 segundos
+  setInterval(syncData, 2000);
+  
+  // Primeira execução imediata
+  syncData();
+</script>
+
+</body>
+</html>
