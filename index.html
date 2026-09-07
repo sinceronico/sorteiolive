@@ -279,6 +279,27 @@
     }
   }
 </script>
+<!-- Biblioteca do Socket.IO -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
+<script>
+  // Substitua o link abaixo pela URL do seu servidor backend quando ele estiver no ar
+  const socket = io('https://sorteio-backend-live.onrender.com');
+
+  // Escuta o evento de presente vindo do servidor Node.js
+  socket.on('giftReceived', (data) => {
+    console.log("Presente recebido:", data);
+    
+    // Adiciona as moedas recebidas na barra de progresso
+    updateProgress(data.coins);
+
+    // Se atingir a meta, adiciona o usuário à lista e reseta a barra
+    if (currentCoins >= targetCoins) {
+      addParticipant(data.username, true, true, true);
+      currentCoins = 0;
+      updateProgress(0);
+    }
+  });
+</script>
 </body>
 </html>
