@@ -113,6 +113,7 @@
       justify-content: center;
       align-items: center;
       margin-top: 10px;
+      flex-wrap: wrap;
     }
 
     .tiktok-connection-box input {
@@ -316,7 +317,7 @@
 <div class="login-overlay" id="loginScreen">
   <div class="login-card">
     <h2 style="margin-top: 0; color: #00f2fe;">🔒 Área Restrita</h2>
-    <p style="color: #94a3b8; font-size: 0.9rem;">Insira a senha do streamer para liberar o painel:</p>
+    <p style="color: #94a3b8; font-size: 0.9rem;">Insira a senha do administrador para acessar o painel:</p>
     <input type="password" id="passInput" placeholder="Sua senha aqui" onkeypress="if(event.key==='Enter') verifyPass()">
     <br>
     <button class="btn" onclick="verifyPass()" style="width: 85%;">ACESSAR PAINEL</button>
@@ -326,18 +327,18 @@
 <div class="container">
 
   <div class="card" style="text-align: center;">
-    <h3 style="margin: 0 0 10px 0;">🔴 Conectar ao TikTok Live</h3>
+    <h3 style="margin: 0 0 10px 0;">🔴 Conexão com a Live do TikTok</h3>
     <div class="tiktok-connection-box">
-      <input type="text" id="tiktokUsernameInput" placeholder="@seu_usuario_tiktok">
-      <button class="btn" onclick="connectTikTok()">CONECTAR À LIVE</button>
+      <input type="text" id="tiktokUsernameInput" value="@sinceronico" placeholder="@seu_usuario_tiktok">
+      <button class="btn" onclick="connectTikTok()">ALTERAR / CONECTAR LIVE</button>
     </div>
     <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
-      Link da sua lista para os espectadores: <strong id="publicLinkDisplay" style="color: #00f2fe;">Defina seu usuário acima</strong>
+      Link público para os espectadores: <strong id="publicLinkDisplay" style="color: #00f2fe;">Carregando...</strong>
     </p>
   </div>
 
   <div id="statusServer">
-    ⚪ Não Conectado
+    ⚪ Conectando...
   </div>
 
   <div class="card header-prize">
@@ -443,7 +444,7 @@
   const analytics = getAnalytics(app);
   const db = getFirestore(app);
 
-  const SENHA_MEU_PAINEL = "1234";
+  const SENHA_MEU_PAINEL = "5879";
 
   window.verifyPass = function() {
     const entered = document.getElementById('passInput').value;
@@ -459,7 +460,12 @@
     document.getElementById('loginScreen').style.display = 'none';
   }
 
-  let currentStreamer = localStorage.getItem('tiktok_username') || '';
+  // Padrão 'sinceronico' ou o último salvo no localStorage
+  const DEFAULT_STREAMER = 'sinceronico';
+  let currentStreamer = localStorage.getItem('tiktok_username') || DEFAULT_STREAMER;
+  
+  document.getElementById('tiktokUsernameInput').value = '@' + currentStreamer;
+
   let raffleDocRef = null;
   let unsubscribeFirebase = null;
 
@@ -474,10 +480,7 @@
   const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
   const socket = io(RENDER_URL);
 
-  if (currentStreamer) {
-    document.getElementById('tiktokUsernameInput').value = currentStreamer;
-    initStreamer(currentStreamer);
-  }
+  initStreamer(currentStreamer);
 
   window.connectTikTok = function() {
     let rawInput = document.getElementById('tiktokUsernameInput').value.trim();
@@ -493,16 +496,15 @@
   function initStreamer(username) {
     currentStreamer = username;
     
-    // Atualiza link publico
+    // Atualiza link publico de visualização
     const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
     document.getElementById('publicLinkDisplay').innerText = `${baseUrl}?user=${username}`;
 
-    // Emite evento para o backend escutar esta live
     socket.emit('setLiveUser', { username: username });
 
     const statusEl = document.getElementById('statusServer');
     statusEl.style.background = '#22c55e';
-    statusEl.innerText = `🔥 Conectado à Live do TikTok: @${username} (Firebase Ativo)`;
+    statusEl.innerText = `🔥 Conectado à Live do TikTok: @${username} (Sincronizado)`;
 
     raffleDocRef = doc(db, "sorteios", username);
 
@@ -570,11 +572,6 @@
   }
 
   function handleGift(username, coinsReceived) {
-    if (!currentStreamer) {
-      alert("Conecte seu @ do TikTok no topo da página primeiro!");
-      return;
-    }
-
     let user = participants.find(p => p.username === username);
 
     if (!user) {
@@ -692,7 +689,7 @@
   };
 
   window.clearList = function() {
-    if (confirm("Deseja realmente apagar TODOS os dados salvos no Firebase e reiniciar o sorteio?")) {
+    if (confirm(`Deseja realmente apagar TODOS os dados salvos para @${currentStreamer}?`)) {
       initTicketPool();
       participants = [];
       allIssuedTickets = [];
