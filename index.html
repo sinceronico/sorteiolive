@@ -32,7 +32,6 @@
       gap: 20px;
     }
 
-    /* Status da Conexao com Render */
     #statusServer {
       text-align: center;
       padding: 10px;
@@ -118,9 +117,48 @@
       text-shadow: 1px 1px 3px #000;
     }
 
+    /* ESTILOS DA RODA DO SORTEIO */
+    .wheel-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .wheel-wrapper {
+      position: relative;
+      width: 320px;
+      height: 320px;
+    }
+
+    /* Ponteiro / Seletor Superior */
+    .wheel-pointer {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 30px solid #ef4444;
+      z-index: 10;
+      filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.5));
+    }
+
+    /* Canvas da Roda */
+    #wheelCanvas {
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+      transition: transform 5s cubic-bezier(0.15, 0.9, 0.2, 1);
+    }
+
     /* Tabela de Participantes */
     .table-container {
-      max-height: 350px;
+      max-height: 250px;
       overflow-y: auto;
       margin-top: 10px;
     }
@@ -141,10 +179,6 @@
       color: var(--accent-color);
       position: sticky;
       top: 0;
-    }
-
-    tr:hover {
-      background-color: #334155;
     }
 
     .badge {
@@ -185,6 +219,71 @@
       justify-content: space-between;
       align-items: center;
       margin-top: 15px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* MODAL DO VENCEDOR NO CENTRO DA TELA */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 3px solid var(--accent-color);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.6);
+      transform: scale(0.7);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      max-width: 90%;
+    }
+
+    .modal-overlay.active .modal-card {
+      transform: scale(1);
+    }
+
+    .winner-title {
+      font-size: 1.5rem;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+
+    .winner-name {
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #00f2fe;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.8);
+      margin: 15px 0;
+      word-break: break-word;
+    }
+
+    .winner-prize {
+      font-size: 1.3rem;
+      color: #f8fafc;
+      background: #334155;
+      padding: 10px 20px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 25px;
     }
   </style>
 </head>
@@ -197,13 +296,13 @@
     ⏳ Conectando ao servidor Render... (Aguarde até 1 minuto caso o servidor esteja inicializando)
   </div>
 
-  <!-- Topo: Premio Editavel -->
+  <!-- Topo: Prêmio Editável -->
   <div class="card header-prize">
     <h1>🎁 PRÊMIO DO SORTEIO</h1>
     <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50">
   </div>
 
-  <!-- Configuracoes de Tempo e Cronometro -->
+  <!-- Configurações de Tempo e Cronômetro -->
   <div class="card timer-section">
     <div>
       <label><strong>Duração do Sorteio (Minutos):</strong> </label>
@@ -226,17 +325,25 @@
       </div>
     </div>
 
-    <!-- Barra de Progresso em Tempo Real -->
     <div class="progress-bar-bg">
       <div id="progressBarFill" class="progress-bar-fill"></div>
       <div id="progressText" class="progress-text">0 / 30 Moedas Acumuladas no Momento</div>
     </div>
   </div>
 
-  <!-- Relacao de Participantes (Nick TikTok + Total doado) -->
+  <!-- Roda do Sorteio -->
+  <div class="card wheel-section">
+    <h3>🎡 Roda dos Participantes</h3>
+    <div class="wheel-wrapper">
+      <div class="wheel-pointer"></div>
+      <canvas id="wheelCanvas" width="320" height="320"></canvas>
+    </div>
+  </div>
+
+  <!-- Relação de Participantes -->
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h3>🎟️ Lista de Qualificados para o Sorteio (<span id="totalParticipants">0</span>)</h3>
+      <h3>🎟️ Lista de Qualificados (<span id="totalParticipants">0</span>)</h3>
       <button class="btn btn-danger" onclick="clearList()">Limpar Lista</button>
     </div>
 
@@ -251,37 +358,50 @@
           </tr>
         </thead>
         <tbody id="participantsTable">
-          <!-- Linhas geradas dinamicamente quando chegarem presentes da live -->
         </tbody>
       </table>
     </div>
 
     <div class="actions-bar">
       <button class="btn btn-sim" onclick="simulateGift(10)">⚡ Simular +10 Moedas (Teste)</button>
-      <button class="btn" onclick="pickWinner()" style="background: #22c55e; color: #fff; font-size: 1.1rem;">🎲 SORTEAR GANHADOR!</button>
+      <button class="btn" id="spinBtn" onclick="spinWheel()" style="background: #22c55e; color: #fff; font-size: 1.1rem;">🎲 GIRAR RODA E SORTEAR!</button>
     </div>
   </div>
 
+</div>
+
+<!-- Modal com Nome Grande do Ganhador no Centro da Tela -->
+<div class="modal-overlay" id="winnerModal">
+  <div class="modal-card">
+    <div class="winner-title">🎉 GRANDE GANHADOR DO SORTEIO!</div>
+    <div class="winner-name" id="winnerName">@usuario</div>
+    <div class="winner-prize" id="winnerPrize">Prêmio: Skin Lendária</div>
+    <br>
+    <button class="btn" onclick="closeModal()" style="font-size: 1.1rem; padding: 12px 30px;">FECHAR</button>
+  </div>
 </div>
 
 <!-- Socket.IO Client -->
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
 <script>
-  // Conexao com seu Render
   const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
-
   const socket = io(RENDER_URL);
   
   let targetCoins = 30;
   let currentCoins = 0;
   let timerInterval = null;
-  
   let participants = [];
+  
+  // Variáveis da Roda
+  let currentRotation = 0;
+  let isSpinning = false;
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx = canvas.getContext('2d');
+  const colors = ['#00f2fe', '#4facfe', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#6366f1'];
 
   const statusDiv = document.getElementById('statusServer');
 
-  // Controle de Conexão
   socket.on('connect', () => {
     statusDiv.style.backgroundColor = '#22c55e';
     statusDiv.style.color = '#fff';
@@ -329,6 +449,7 @@
     }
 
     renderTable();
+    drawWheel();
   }
 
   function renderTable() {
@@ -349,6 +470,97 @@
     document.getElementById('totalParticipants').innerText = participants.length;
   }
 
+  // Desenhar Roda de Pizza no Canvas
+  function drawWheel() {
+    const numOptions = participants.length;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = canvas.width / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (numOptions === 0) {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = '#334155';
+      ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 16px Segoe UI';
+      ctx.textAlign = 'center';
+      ctx.fillText('Aguardando Participantes...', centerX, centerY);
+      return;
+    }
+
+    const arcSize = (2 * Math.PI) / numOptions;
+
+    participants.forEach((p, i) => {
+      const angle = i * arcSize;
+      ctx.beginPath();
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+      ctx.lineTo(centerX, centerY);
+      ctx.fill();
+
+      // Escrever Nomes na Roda
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(angle + arcSize / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 14px Segoe UI';
+      ctx.fillText('@' + p.username, radius - 15, 5);
+      ctx.restore();
+    });
+  }
+
+  // Animação de Girar a Roda (5 Segundos)
+  function spinWheel() {
+    if (isSpinning) return;
+    if (participants.length === 0) {
+      alert("Adicione participantes ou simule presentes antes de girar!");
+      return;
+    }
+
+    isSpinning = true;
+    document.getElementById('spinBtn').disabled = true;
+
+    // Escolhe um ganhador aleatório
+    const winnerIndex = Math.floor(Math.random() * participants.length);
+    const numOptions = participants.length;
+    const arcSize = 360 / numOptions;
+
+    // Calcula a rotação necessária para alinhar o setor do ganhador com o ponteiro do topo (270º no canvas)
+    const targetAngleInSector = arcSize / 2;
+    const winningSectorAngle = winnerIndex * arcSize + targetAngleInSector;
+    
+    // 5 giros completos (1800 deg) + alinhamento
+    const extraSpins = 360 * 5; 
+    const finalAngle = extraSpins + (270 - winningSectorAngle);
+
+    currentRotation += finalAngle;
+    canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+    // Aguarda exatamente 5 segundos (tempo definido na transição do CSS)
+    setTimeout(() => {
+      isSpinning = false;
+      document.getElementById('spinBtn').disabled = false;
+      showWinner(participants[winnerIndex]);
+    }, 5000);
+  }
+
+  // Exibir Modal do Vencedor no Centro da Tela
+  function showWinner(winner) {
+    const prize = document.getElementById('prizeInput').value;
+    document.getElementById('winnerName').innerText = `@${winner.username}`;
+    document.getElementById('winnerPrize').innerText = `Prêmio: ${prize}`;
+    document.getElementById('winnerModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('winnerModal').classList.remove('active');
+  }
+
   function startTimer() {
     clearInterval(timerInterval);
     let duration = parseInt(document.getElementById('timerMinutes').value) * 60;
@@ -367,38 +579,28 @@
     }, 1000);
   }
 
-  function pickWinner() {
-    if (participants.length === 0) {
-      alert("Nenhum participante qualificado na lista ainda!");
-      return;
-    }
-
-    const randomIndex = Math.floor(Math.random() * participants.length);
-    const winner = participants[randomIndex];
-    const prize = document.getElementById('prizeInput').value;
-
-    alert(`🎉 GANHADOR DO SORTEIO!\n\nUsuário: @${winner.username}\nPrêmio: ${prize}`);
-  }
-
   function clearList() {
     if (confirm("Deseja realmente limpar a lista de participantes?")) {
       participants = [];
       currentCoins = 0;
       renderProgress();
       renderTable();
+      drawWheel();
     }
   }
 
   socket.on('giftReceived', (data) => {
-    console.log("Presente detectado:", data);
     handleGift(data.username, data.coins);
   });
 
   function simulateGift(coins) {
-    const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream"];
+    const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt"];
     const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
     handleGift(randomUser, coins);
   }
+
+  // Desenhar roda inicial
+  drawWheel();
 </script>
 
 </body>
