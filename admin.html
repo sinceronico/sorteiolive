@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Controle do Sorteio</title>
+  <title>Painel do Streamer - Controle do Sorteio</title>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -23,7 +23,6 @@
       justify-content: center;
     }
 
-    /* TELA DE LOGIN POR SENHA */
     .login-overlay {
       position: fixed;
       top: 0;
@@ -71,8 +70,8 @@
     #statusServer {
       text-align: center;
       padding: 10px;
-      background: #eab308;
-      color: #000;
+      background: #22c55e;
+      color: #fff;
       font-weight: bold;
       border-radius: 8px;
       font-size: 0.95rem;
@@ -295,7 +294,6 @@
 </head>
 <body>
 
-<!-- TELA DE AUTENTICAÇÃO POR SENHA -->
 <div class="login-overlay" id="loginScreen">
   <div class="login-card">
     <h2 style="margin-top: 0; color: #00f2fe;">🔒 Área Restrita</h2>
@@ -308,18 +306,15 @@
 
 <div class="container">
 
-  <!-- Status do Servidor Backend -->
   <div id="statusServer">
-    ⏳ Conectando ao servidor Render...
+    🔥 Conectado ao Firebase Cloud (Sincronização Nuvem Ativa)
   </div>
 
-  <!-- Topo: Prêmio Editável -->
   <div class="card header-prize">
     <h1>🎁 PRÊMIO DO SORTEIO</h1>
-    <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50" onkeyup="saveDataToStorage()">
+    <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50" onkeyup="saveDataToFirebase()">
   </div>
 
-  <!-- Cronômetro -->
   <div class="card timer-section">
     <div>
       <label><strong>Duração do Sorteio (Minutos):</strong> </label>
@@ -332,7 +327,6 @@
     </div>
   </div>
 
-  <!-- Configuração de Moedas -->
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
       <div>
@@ -346,14 +340,12 @@
     </div>
   </div>
 
-  <!-- Painel Digital -->
   <div class="card raffle-display-section">
     <h3 style="margin: 0; color: #94a3b8;">🎰 SORTEADOR DIGITAL (POOL 1-1000)</h3>
     <div class="digital-counter" id="digitalCounter">#0000</div>
     <p style="color: #64748b; margin: 0;">Bilhetes Emitidos: <strong id="totalTicketsCount" style="color: #00f2fe;">0</strong> / 1000 | Disponíveis: <strong id="availableTicketsCount" style="color: #22c55e;">1000</strong></p>
   </div>
 
-  <!-- Tabela de Participantes -->
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <h3>🎟️ Relação de Doadores (<span id="totalParticipants">0</span>)</h3>
@@ -388,7 +380,6 @@
 
 </div>
 
-<!-- Modal com Nome e Número Grande no Centro da Tela -->
 <div class="modal-overlay" id="winnerModal">
   <div class="modal-card">
     <div class="winner-title">🎉 GRANDE GANHADOR DO SORTEIO!</div>
@@ -402,11 +393,30 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
-<script>
-  // DEFINE A SUA SENHA AQUI:
-  const SENHA_MEU_PAINEL = "5879";
+<!-- MÓDULOS DO FIREBASE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-  function verifyPass() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyDjJrfEOnwA-y7TGlNUxJ1v3AoU2mdqqwo",
+    authDomain: "sorteiolive-ec896.firebaseapp.com",
+    projectId: "sorteiolive-ec896",
+    storageBucket: "sorteiolive-ec896.firebasestorage.app",
+    messagingSenderId: "418542817743",
+    appId: "1:418542817743:web:2cd9fdba8b1151b7bcc2ba",
+    measurementId: "G-40EZ2GJY4V"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+  const raffleDocRef = doc(db, "sorteios", "ao_vivo");
+
+  const SENHA_MEU_PAINEL = "1234";
+
+  window.verifyPass = function() {
     const entered = document.getElementById('passInput').value;
     if (entered === SENHA_MEU_PAINEL) {
       document.getElementById('loginScreen').style.display = 'none';
@@ -414,16 +424,12 @@
     } else {
       alert("Senha incorreta!");
     }
-  }
+  };
 
-  // Mantém logado na mesma sessão do navegador
   if (sessionStorage.getItem('admin_auth') === 'true') {
     document.getElementById('loginScreen').style.display = 'none';
   }
 
-  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
-  const socket = io(RENDER_URL);
-  
   let targetCoins = 30;
   let timerInterval = null;
   let isDrawing = false;
@@ -432,8 +438,6 @@
   let participants = [];
   let allIssuedTickets = [];
 
-  const statusDiv = document.getElementById('statusServer');
-
   function initTicketPool() {
     availablePool = [];
     for (let i = 1; i <= 1000; i++) {
@@ -441,56 +445,48 @@
     }
   }
 
-  function saveDataToStorage() {
-    const data = {
-      targetCoins,
-      availablePool,
-      participants,
-      allIssuedTickets,
-      prizeInput: document.getElementById('prizeInput').value
-    };
-    localStorage.setItem('sorteio_tiktok_data', JSON.stringify(data));
-  }
-
-  function loadDataFromStorage() {
-    const saved = localStorage.getItem('sorteio_tiktok_data');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        targetCoins = parsed.targetCoins || 30;
-        availablePool = parsed.availablePool || [];
-        participants = parsed.participants || [];
-        allIssuedTickets = parsed.allIssuedTickets || [];
-        
-        document.getElementById('targetCoinsInput').value = targetCoins;
-        if (parsed.prizeInput) {
-          document.getElementById('prizeInput').value = parsed.prizeInput;
-        }
-      } catch (e) {
-        initTicketPool();
-      }
-    } else {
-      initTicketPool();
+  async function saveDataToFirebase() {
+    try {
+      await setDoc(raffleDocRef, {
+        targetCoins: targetCoins,
+        availablePool: availablePool,
+        participants: participants,
+        allIssuedTickets: allIssuedTickets,
+        prizeInput: document.getElementById('prizeInput').value
+      });
+    } catch (e) {
+      console.error("Erro ao salvar no Firebase:", e);
     }
   }
+  window.saveDataToFirebase = saveDataToFirebase;
 
-  socket.on('connect', () => {
-    statusDiv.style.backgroundColor = '#22c55e';
-    statusDiv.style.color = '#fff';
-    statusDiv.innerText = '🟢 Conectado ao Servidor Render com Sucesso!';
+  onSnapshot(raffleDocRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      targetCoins = data.targetCoins || 30;
+      availablePool = data.availablePool || [];
+      participants = data.participants || [];
+      allIssuedTickets = data.allIssuedTickets || [];
+      
+      document.getElementById('targetCoinsInput').value = targetCoins;
+      if (data.prizeInput) {
+        document.getElementById('prizeInput').value = data.prizeInput;
+      }
+      renderTable();
+      updateCounts();
+    } else {
+      initTicketPool();
+      saveDataToFirebase();
+    }
   });
 
-  socket.on('disconnect', () => {
-    statusDiv.style.backgroundColor = '#ef4444';
-    statusDiv.style.color = '#fff';
-    statusDiv.innerText = '🔴 Servidor Desconectado.';
-  });
+  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
+  const socket = io(RENDER_URL);
 
-  function updateGoal() {
+  window.updateGoal = function() {
     targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
-    saveDataToStorage();
-    renderTable();
-  }
+    saveDataToFirebase();
+  };
 
   function formatTicketNumber(num) {
     return '#' + num.toString().padStart(4, '0');
@@ -500,7 +496,6 @@
     if (availablePool.length === 0) return null;
     const randomIndex = Math.floor(Math.random() * availablePool.length);
     const chosenNumber = availablePool[randomIndex];
-    
     availablePool.splice(randomIndex, 1);
     return chosenNumber;
   }
@@ -526,9 +521,7 @@
       }
     }
 
-    saveDataToStorage();
-    renderTable();
-    updateCounts();
+    saveDataToFirebase();
   }
 
   function updateCounts() {
@@ -561,7 +554,7 @@
     document.getElementById('totalParticipants').innerText = participants.length;
   }
 
-  function startDrawAnimation() {
+  window.startDrawAnimation = function() {
     if (isDrawing) return;
     if (allIssuedTickets.length === 0) {
       alert("Nenhum participante atingiu o valor mínimo para gerar um Número da Sorte ainda!");
@@ -592,7 +585,7 @@
         }, 300);
       }
     }, 50);
-  }
+  };
 
   function showWinner(winningEntry) {
     const prize = document.getElementById('prizeInput').value;
@@ -602,11 +595,11 @@
     document.getElementById('winnerModal').classList.add('active');
   }
 
-  function closeModal() {
+  window.closeModal = function() {
     document.getElementById('winnerModal').classList.remove('active');
-  }
+  };
 
-  function startTimer() {
+  window.startTimer = function() {
     clearInterval(timerInterval);
     let duration = parseInt(document.getElementById('timerMinutes').value) * 60;
     
@@ -622,40 +615,27 @@
         alert("⏱️ O tempo do sorteio encerrou!");
       }
     }, 1000);
-  }
+  };
 
-  function clearList() {
-    if (confirm("Deseja realmente apagar TODOS os dados salvos e reiniciar o sorteio?")) {
-      localStorage.removeItem('sorteio_tiktok_data');
+  window.clearList = function() {
+    if (confirm("Deseja realmente apagar TODOS os dados salvos no Firebase e reiniciar o sorteio?")) {
       initTicketPool();
       participants = [];
       allIssuedTickets = [];
       document.getElementById('digitalCounter').innerText = '#0000';
-      saveDataToStorage();
-      updateCounts();
-      renderTable();
+      saveDataToFirebase();
     }
-  }
+  };
 
   socket.on('giftReceived', (data) => {
     handleGift(data.username, data.coins);
   });
 
-  function simulateGift(coins) {
+  window.simulateGift = function(coins) {
     const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt", "julia_play", "bruno_top"];
     const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
     handleGift(randomUser, coins);
-  }
-
-  setInterval(() => {
-    if (!isDrawing) {
-      window.location.reload();
-    }
-  }, 60000);
-
-  loadDataFromStorage();
-  renderTable();
-  updateCounts();
+  };
 </script>
 
 </body>
