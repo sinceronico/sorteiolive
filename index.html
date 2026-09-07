@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorteio Interativo de Live</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-color: #00f2fe;
+      --text-color: #f8fafc;
+      --success-color: #22c55e;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-prize {
+      text-align: center;
+      border: 2px solid var(--accent-color);
+    }
+
+    .header-prize h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #94a3b8;
+    }
+
+    .editable-input {
+      background: transparent;
+      border: none;
+      border-bottom: 2px dashed var(--accent-color);
+      color: #fff;
+      font-size: 1.8rem;
+      font-weight: bold;
+      text-align: center;
+      width: 100%;
+      outline: none;
+    }
+
+    .timer-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.2rem;
+    }
+
+    .timer-display {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-bar-bg {
+      background: #334155;
+      border-radius: 10px;
+      height: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 2px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      text-shadow: 1px 1px 2px #000;
+    }
+
+    .participant-item {
+      background: #334155;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+
+    .badge-check {
+      background-color: var(--success-color);
+      color: #fff;
+    }
+
+    .badge-pending {
+      background-color: #eab308;
+      color: #000;
+    }
+
+    .tasks-list {
+      display: flex;
+      gap: 10px;
+      font-size: 0.85rem;
+      margin-top: 5px;
+    }
+
+    button {
+      background: var(--accent-color);
+      border: none;
+      color: #000;
+      padding: 10px 20px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- topo: premio (editável) -->
+  <div class="card header-prize">
+    <h1>🎁 PRÊMIO DO SORTEIO</h1>
+    <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50">
+  </div>
+
+  <!-- configuracoes e cronometro -->
+  <div class="card timer-section">
+    <div>
+      <label>Duração (Minutos): </label>
+      <input type="number" id="timerMinutes" value="10" style="width: 60px; padding: 5px;">
+      <button onclick="startTimer()">Iniciar Sorteio</button>
+    </div>
+    <div>
+      <span>Tempo Restante:</span>
+      <div id="timerDisplay" class="timer-display">10:00</div>
+    </div>
+  </div>
+
+  <!-- meta de moedas (editável) -->
+  <div class="card progress-container">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3>🎯 Meta de Moedas do TikTok para Habilitar Entrada</h3>
+      <div>
+        <label>Meta: </label>
+        <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 60px; padding: 5px;">
+      </div>
+    </div>
+
+    <!-- barra de progresso -->
+    <div class="progress-bar-bg">
+      <div id="progressBarFill" class="progress-bar-fill"></div>
+      <div id="progressText" class="progress-text">0 / 30 Moedas Requeridas</div>
+    </div>
+  </div>
+
+  <!-- lista de participantes -->
+  <div class="card">
+    <h3>🎟️ Lista de Participantes Qualificados</h3>
+    <div id="participantsList">
+      <!-- Exemplo de participante gerado dinamicamente -->
+    </div>
+    <button onclick="simulateGift()" style="margin-top: 10px; background: #a855f7; color: #fff;">
+      ⚡ Simular Envio de Presente (Teste)
+    </button>
+  </div>
+
+</div>
+
+<script>
+  let targetCoins = 30;
+  let currentCoins = 0;
+  let timerInterval = null;
+
+  // Atualiza meta configurada pelo streamer
+  function updateGoal() {
+    targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
+    updateProgress(0);
+  }
+
+  // Atualiza barra de progresso
+  function updateProgress(addedCoins) {
+    currentCoins += addedCoins;
+    const percentage = Math.min(100, (currentCoins / targetCoins) * 100);
+    
+    document.getElementById('progressBarFill').style.width = percentage + '%';
+    document.getElementById('progressText').innerText = `${currentCoins} / ${targetCoins} Moedas`;
+  }
+
+  // Cronômetro
+  function startTimer() {
+    clearInterval(timerInterval);
+    let duration = parseInt(document.getElementById('timerMinutes').value) * 60;
+    
+    timerInterval = setInterval(() => {
+      const minutes = Math.floor(duration / 60);
+      const seconds = duration % 60;
+      
+      document.getElementById('timerDisplay').innerText = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+      if (--duration < 0) {
+        clearInterval(timerInterval);
+        alert("⏱️ O tempo do sorteio acabou!");
+      }
+    }, 1000);
+  }
+
+  // Adicionar participante à lista após cumprir a meta
+  function addParticipant(username, tiktokFollow, kickFollow, twitchFollow) {
+    const list = document.getElementById('participantsList');
+    
+    const item = document.createElement('div');
+    item.className = 'participant-item';
+    
+    item.innerHTML = `
+      <div>
+        <strong>@${username}</strong>
+        <div class="tasks-list">
+          <span class="badge ${tiktokFollow ? 'badge-check' : 'badge-pending'}">TikTok ${tiktokFollow ? '✓' : '✗'}</span>
+          <span class="badge ${kickFollow ? 'badge-check' : 'badge-pending'}">Kick ${kickFollow ? '✓' : '✗'}</span>
+          <span class="badge ${twitchFollow ? 'badge-check' : 'badge-pending'}">Twitch ${twitchFollow ? '✓' : '✗'}</span>
+        </div>
+      </div>
+      <span class="badge badge-check">Qualificado</span>
+    `;
+    
+    list.appendChild(item);
+  }
+
+  // Função para simular eventos de presente do TikTok
+  function simulateGift() {
+    updateProgress(10);
+    if (currentCoins >= targetCoins) {
+      const mockUser = "Usuario_" + Math.floor(Math.random() * 1000);
+      addParticipant(mockUser, true, true, true);
+      currentCoins = 0; // Reseta para a próxima entrada se necessário
+      updateProgress(0);
+    }
+  }
+</script>
+
+</body>
+</html>
