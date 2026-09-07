@@ -122,13 +122,11 @@
 
 <div class="container">
 
-  <!-- Topo: Prêmio Atual -->
   <div class="card header-prize">
     <h1>🎁 PRÊMIO EM DISPUTA</h1>
     <div class="prize-title" id="displayPrize">Carregando...</div>
   </div>
 
-  <!-- Resumo da Cota e Bilhetes Emitidos -->
   <div class="card stats-bar">
     <div class="stat-box">
       <h4>Mínimo p/ Número</h4>
@@ -144,7 +142,6 @@
     </div>
   </div>
 
-  <!-- Tabela de Participantes -->
   <div class="card">
     <h3 style="margin: 0 0 10px 0;">📊 Relação de Participantes em Tempo Real</h3>
     <div class="table-container">
@@ -166,21 +163,38 @@
 
 </div>
 
-<script>
+<!-- MÓDULOS DO FIREBASE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDjJrfEOnwA-y7TGlNUxJ1v3AoU2mdqqwo",
+    authDomain: "sorteiolive-ec896.firebaseapp.com",
+    projectId: "sorteiolive-ec896",
+    storageBucket: "sorteiolive-ec896.firebasestorage.app",
+    messagingSenderId: "418542817743",
+    appId: "1:418542817743:web:2cd9fdba8b1151b7bcc2ba",
+    measurementId: "G-40EZ2GJY4V"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+  const raffleDocRef = doc(db, "sorteios", "ao_vivo");
+
   function formatTicketNumber(num) {
     return '#' + num.toString().padStart(4, '0');
   }
 
-  function syncData() {
-    const saved = localStorage.getItem('sorteio_tiktok_data');
-    if (!saved) return;
-
-    try {
-      const parsed = JSON.parse(saved);
-      const targetCoins = parsed.targetCoins || 30;
-      const participants = parsed.participants || [];
-      const allIssuedTickets = parsed.allIssuedTickets || [];
-      const prizeInput = parsed.prizeInput || 'Consulte o streamer';
+  onSnapshot(raffleDocRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      const targetCoins = data.targetCoins || 30;
+      const participants = data.participants || [];
+      const allIssuedTickets = data.allIssuedTickets || [];
+      const prizeInput = data.prizeInput || 'Consulte o streamer';
 
       document.getElementById('displayPrize').innerText = prizeInput;
       document.getElementById('displayTargetCoins').innerText = targetCoins;
@@ -207,13 +221,8 @@
         `;
         tbody.appendChild(tr);
       });
-    } catch (e) {
-      console.error("Erro ao sincronizar dados", e);
     }
-  }
-
-  setInterval(syncData, 2000);
-  syncData();
+  });
 </script>
 
 </body>
