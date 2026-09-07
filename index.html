@@ -183,55 +183,50 @@
   const analytics = getAnalytics(app);
   const db = getFirestore(app);
 
-  // Extrai o parâmetro ?user= da URL
   const urlParams = new URLSearchParams(window.location.search);
-  const targetUser = (urlParams.get('user') || '').toLowerCase().replace('@', '');
+  const targetUser = (urlParams.get('user') || 'sinceronico').toLowerCase().replace('@', '');
 
-  if (!targetUser) {
-    document.getElementById('displayPrize').innerText = "Nenhum streamer especificado na URL!";
-  } else {
-    document.getElementById('streamerTitle').innerText = `🎁 PRÊMIO EM DISPUTA (@${targetUser})`;
-    
-    const raffleDocRef = doc(db, "sorteios", targetUser);
+  document.getElementById('streamerTitle').innerText = `🎁 PRÊMIO EM DISPUTA (@${targetUser})`;
+  
+  const raffleDocRef = doc(db, "sorteios", targetUser);
 
-    onSnapshot(raffleDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const targetCoins = data.targetCoins || 30;
-        const participants = data.participants || [];
-        const allIssuedTickets = data.allIssuedTickets || [];
-        const prizeInput = data.prizeInput || 'Consulte o streamer';
+  onSnapshot(raffleDocRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      const targetCoins = data.targetCoins || 30;
+      const participants = data.participants || [];
+      const allIssuedTickets = data.allIssuedTickets || [];
+      const prizeInput = data.prizeInput || 'Consulte a live';
 
-        document.getElementById('displayPrize').innerText = prizeInput;
-        document.getElementById('displayTargetCoins').innerText = targetCoins;
-        document.getElementById('displayParticipants').innerText = participants.length;
-        document.getElementById('displayTotalTickets').innerText = allIssuedTickets.length;
+      document.getElementById('displayPrize').innerText = prizeInput;
+      document.getElementById('displayTargetCoins').innerText = targetCoins;
+      document.getElementById('displayParticipants').innerText = participants.length;
+      document.getElementById('displayTotalTickets').innerText = allIssuedTickets.length;
 
-        const tbody = document.getElementById('participantsTable');
-        tbody.innerHTML = '';
+      const tbody = document.getElementById('participantsTable');
+      tbody.innerHTML = '';
 
-        participants.forEach((p, index) => {
-          const tr = document.createElement('tr');
-          const sortedTickets = [...p.tickets].sort((a, b) => a - b);
-          
-          const ticketsHTML = sortedTickets.length > 0 
-            ? sortedTickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
-            : `<span class="no-ticket-badge">Aguardando valor mínimo (${p.totalCoins}/${targetCoins})</span>`;
+      participants.forEach((p, index) => {
+        const tr = document.createElement('tr');
+        const sortedTickets = [...p.tickets].sort((a, b) => a - b);
+        
+        const ticketsHTML = sortedTickets.length > 0 
+          ? sortedTickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
+          : `<span class="no-ticket-badge">Aguardando valor mínimo (${p.totalCoins}/${targetCoins})</span>`;
 
-          tr.innerHTML = `
-            <td><strong>${index + 1}</strong></td>
-            <td><strong>@${p.username}</strong></td>
-            <td>${p.totalCoins} moedas</td>
-            <td><strong>${p.tickets.length}</strong></td>
-            <td>${ticketsHTML}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-      } else {
-        document.getElementById('displayPrize').innerText = "Aguardando o streamer iniciar o sorteio...";
-      }
-    });
-  }
+        tr.innerHTML = `
+          <td><strong>${index + 1}</strong></td>
+          <td><strong>@${p.username}</strong></td>
+          <td>${p.totalCoins} moedas</td>
+          <td><strong>${p.tickets.length}</strong></td>
+          <td>${ticketsHTML}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } else {
+      document.getElementById('displayPrize').innerText = "Aguardando o streamer iniciar o sorteio...";
+    }
+  });
 
   function formatTicketNumber(num) {
     return '#' + num.toString().padStart(4, '0');
