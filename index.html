@@ -151,6 +151,12 @@
       margin: 2px;
     }
 
+    .no-ticket-badge {
+      color: #64748b;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
     .btn {
       background: var(--accent-color);
       border: none;
@@ -266,7 +272,7 @@
   <!-- Topo: Prêmio Editável -->
   <div class="card header-prize">
     <h1>🎁 PRÊMIO DO SORTEIO</h1>
-    <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50">
+    <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50" onkeyup="saveDataToStorage()">
   </div>
 
   <!-- Configurações de Tempo e Cronômetro -->
@@ -286,11 +292,11 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
       <div>
-        <h3 style="margin: 0;">🪙 Cota para Número da Sorte</h3>
-        <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Cada cota atingida atribui um número aleatório único (de 1 a 1000).</p>
+        <h3 style="margin: 0;">🪙 Cota Mínima para Número da Sorte</h3>
+        <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Todos entram na lista, mas apenas quem acumular este valor ganha bilhetes aleatórios (1 a 1000).</p>
       </div>
       <div>
-        <label><strong>Moedas por Número:</strong> </label>
+        <label><strong>Moedas Mínimas por Bilhete:</strong> </label>
         <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 70px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
       </div>
     </div>
@@ -306,7 +312,7 @@
   <!-- Tabela de Participantes e Números da Sorte -->
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h3>🎟️ Lista de Participantes (<span id="totalParticipants">0</span>)</h3>
+      <h3>🎟️ Relação de Doadores (<span id="totalParticipants">0</span>)</h3>
       <button class="btn btn-danger" onclick="clearList()">Limpar Todos os Dados</button>
     </div>
 
@@ -316,7 +322,7 @@
           <tr>
             <th>#</th>
             <th>Usuário do TikTok</th>
-            <th>Total Moedas</th>
+            <th>Moedas Doadas</th>
             <th>Qtd. Bilhetes</th>
             <th>Números da Sorte (Aleatórios)</th>
           </tr>
@@ -328,8 +334,9 @@
 
     <div class="actions-bar">
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn btn-sim" onclick="simulateGift(30)">⚡ Simular +30 Moedas</button>
-        <button class="btn btn-sim" onclick="simulateGift(90)">🚀 Simular +90 Moedas (3 Números)</button>
+        <button class="btn btn-sim" onclick="simulateGift(1)">⚡ Simular +1 Moeda</button>
+        <button class="btn btn-sim" onclick="simulateGift(10)">🚀 Simular +10 Moedas</button>
+        <button class="btn btn-sim" onclick="simulateGift(30)">🔥 Simular +30 Moedas</button>
       </div>
       <button class="btn" id="drawBtn" onclick="startDrawAnimation()" style="background: #22c55e; color: #fff; font-size: 1.15rem; padding: 12px 24px;">🎲 SORTEAR NÚMERO!</button>
     </div>
@@ -360,14 +367,14 @@
   let timerInterval = null;
   let isDrawing = false;
   
-  // Pool de 1000 números disponíveis (1 a 1000)
+  // Estado e Persistência
   let availablePool = [];
-  let participants = []; // { username, totalCoins, tickets: [34, 812, 5] }
-  let allIssuedTickets = []; // [{ ticketNum: 812, username: 'nick' }]
+  let participants = [];
+  let allIssuedTickets = [];
 
   const statusDiv = document.getElementById('statusServer');
 
-  // Inicializa a pool de 1 a 1000
+  // Inicializa Pool
   function initTicketPool() {
     availablePool = [];
     for (let i = 1; i <= 1000; i++) {
@@ -375,10 +382,44 @@
     }
   }
 
+  // GERENCIAMENTO DE PERSISTÊNCIA (localStorage)
+  function saveDataToStorage() {
+    const data = {
+      targetCoins,
+      availablePool,
+      participants,
+      allIssuedTickets,
+      prizeInput: document.getElementById('prizeInput').value
+    };
+    localStorage.setItem('sorteio_tiktok_data', JSON.stringify(data));
+  }
+
+  function loadDataFromStorage() {
+    const saved = localStorage.getItem('sorteio_tiktok_data');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        targetCoins = parsed.targetCoins || 30;
+        availablePool = parsed.availablePool || [];
+        participants = parsed.participants || [];
+        allIssuedTickets = parsed.allIssuedTickets || [];
+        
+        document.getElementById('targetCoinsInput').value = targetCoins;
+        if (parsed.prizeInput) {
+          document.getElementById('prizeInput').value = parsed.prizeInput;
+        }
+      } catch (e) {
+        initTicketPool();
+      }
+    } else {
+      initTicketPool();
+    }
+  }
+
   socket.on('connect', () => {
     statusDiv.style.backgroundColor = '#22c55e';
     statusDiv.style.color = '#fff';
-    statusDiv.innerText = '🟢 Conectado ao Servidor Render com Sucesso!';
+    statusDiv.innerText = '🟢 Conectado ao Servidor com Sucesso!';
   });
 
   socket.on('disconnect', () => {
@@ -389,20 +430,19 @@
 
   function updateGoal() {
     targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
+    saveDataToStorage();
+    renderTable();
   }
 
-  // Formata números no padrão de 4 dígitos (ex: #0001, #0045, #0812, #1000)
   function formatTicketNumber(num) {
     return '#' + num.toString().padStart(4, '0');
   }
 
-  // Retira e retorna um número estritamente aleatório e único do pool disponível
   function drawRandomUniqueTicket() {
     if (availablePool.length === 0) return null;
     const randomIndex = Math.floor(Math.random() * availablePool.length);
     const chosenNumber = availablePool[randomIndex];
     
-    // Remove do pool de disponíveis
     availablePool.splice(randomIndex, 1);
     return chosenNumber;
   }
@@ -417,7 +457,7 @@
 
     user.totalCoins += coinsReceived;
 
-    // Quantos bilhetes o usuário tem direito com o total acumulado
+    // Calcula quantidade total de bilhetes que a pessoa tem direito
     const expectedTicketsCount = Math.floor(user.totalCoins / targetCoins);
     const newTicketsToGenerate = expectedTicketsCount - user.tickets.length;
 
@@ -426,12 +466,10 @@
       if (ticketNum !== null) {
         user.tickets.push(ticketNum);
         allIssuedTickets.push({ ticketNum: ticketNum, username: username });
-      } else {
-        console.warn("Todos os 1000 números da sorte já foram emitidos!");
-        break;
       }
     }
 
+    saveDataToStorage();
     renderTable();
     updateCounts();
   }
@@ -447,13 +485,11 @@
 
     participants.forEach((p, index) => {
       const tr = document.createElement('tr');
-      
-      // Ordena visualmente os bilhetes do usuário do menor para o maior
       const sortedTickets = [...p.tickets].sort((a, b) => a - b);
       
       const ticketsHTML = sortedTickets.length > 0 
         ? sortedTickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
-        : '<span style="color: #64748b; font-size: 0.85rem;">Moedas insuficientes</span>';
+        : `<span class="no-ticket-badge">Aguardando valor mínimo (${p.totalCoins}/${targetCoins})</span>`;
 
       tr.innerHTML = `
         <td><strong>${index + 1}</strong></td>
@@ -468,35 +504,28 @@
     document.getElementById('totalParticipants').innerText = participants.length;
   }
 
-  // Animação Digital do Sorteio (5 Segundos)
   function startDrawAnimation() {
     if (isDrawing) return;
     if (allIssuedTickets.length === 0) {
-      alert("Nenhum Número da Sorte foi emitido ainda! Simule envios ou receba presentes na live.");
+      alert("Nenhum participante atingiu o valor mínimo para gerar um Número da Sorte ainda!");
       return;
     }
 
     isDrawing = true;
     document.getElementById('drawBtn').disabled = true;
 
-    // Seleciona EXCLUSIVAMENTE um bilhete que foi emitido entre os participantes
     const winningEntry = allIssuedTickets[Math.floor(Math.random() * allIssuedTickets.length)];
-    
     const counterDisplay = document.getElementById('digitalCounter');
     const startTime = Date.now();
-    const duration = 5000; // 5 segundos de animação
+    const duration = 5000;
 
-    // Efeito de números trocando aleatoriamente na tela (1 a 1000)
     const interval = setInterval(() => {
       const elapsedTime = Date.now() - startTime;
-      
       const randomVisualNum = Math.floor(Math.random() * 1000) + 1;
       counterDisplay.innerText = formatTicketNumber(randomVisualNum);
 
       if (elapsedTime >= duration) {
         clearInterval(interval);
-        
-        // Trava no número do ganhador oficial
         counterDisplay.innerText = formatTicketNumber(winningEntry.ticketNum);
         
         setTimeout(() => {
@@ -508,7 +537,6 @@
     }, 50);
   }
 
-  // Exibe Modal do Vencedor
   function showWinner(winningEntry) {
     const prize = document.getElementById('prizeInput').value;
     document.getElementById('modalWinnerTicket').innerText = `NÚMERO DA SORTE ${formatTicketNumber(winningEntry.ticketNum)}`;
@@ -540,11 +568,13 @@
   }
 
   function clearList() {
-    if (confirm("Deseja realmente reiniciar todo o sorteio e zerar a distribuição dos 1000 números da sorte?")) {
+    if (confirm("Deseja realmente apagar TODOS os dados salvos e reiniciar o sorteio?")) {
+      localStorage.removeItem('sorteio_tiktok_data');
       initTicketPool();
       participants = [];
       allIssuedTickets = [];
       document.getElementById('digitalCounter').innerText = '#0000';
+      saveDataToStorage();
       updateCounts();
       renderTable();
     }
@@ -554,15 +584,24 @@
     handleGift(data.username, data.coins);
   });
 
-  // Simulação
   function simulateGift(coins) {
     const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt", "julia_play", "bruno_top"];
     const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
     handleGift(randomUser, coins);
   }
 
-  // Iniciar Pool ao carregar
-  initTicketPool();
+  // AUTO-REFRESH A CADA 1 MINUTO (60.000 ms)
+  setInterval(() => {
+    // Só recarrega se o sorteio não estiver girando no momento
+    if (!isDrawing) {
+      window.location.reload();
+    }
+  }, 60000);
+
+  // Inicialização ao carregar a página
+  loadDataFromStorage();
+  renderTable();
+  updateCounts();
 </script>
 
 </body>
