@@ -70,7 +70,7 @@
     #statusServer {
       text-align: center;
       padding: 10px;
-      background: #22c55e;
+      background: #334155;
       color: #fff;
       font-weight: bold;
       border-radius: 8px;
@@ -105,6 +105,25 @@
       text-align: center;
       width: 100%;
       outline: none;
+    }
+
+    .tiktok-connection-box {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .tiktok-connection-box input {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #00f2fe;
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-align: center;
     }
 
     .timer-section {
@@ -306,8 +325,19 @@
 
 <div class="container">
 
+  <div class="card" style="text-align: center;">
+    <h3 style="margin: 0 0 10px 0;">🔴 Conectar ao TikTok Live</h3>
+    <div class="tiktok-connection-box">
+      <input type="text" id="tiktokUsernameInput" placeholder="@seu_usuario_tiktok">
+      <button class="btn" onclick="connectTikTok()">CONECTAR À LIVE</button>
+    </div>
+    <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
+      Link da sua lista para os espectadores: <strong id="publicLinkDisplay" style="color: #00f2fe;">Defina seu usuário acima</strong>
+    </p>
+  </div>
+
   <div id="statusServer">
-    🔥 Conectado ao Firebase Cloud (Sincronização Nuvem Ativa)
+    ⚪ Não Conectado
   </div>
 
   <div class="card header-prize">
@@ -412,7 +442,6 @@
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
   const db = getFirestore(app);
-  const raffleDocRef = doc(db, "sorteios", "ao_vivo");
 
   const SENHA_MEU_PAINEL = "1234";
 
@@ -430,6 +459,10 @@
     document.getElementById('loginScreen').style.display = 'none';
   }
 
+  let currentStreamer = localStorage.getItem('tiktok_username') || '';
+  let raffleDocRef = null;
+  let unsubscribeFirebase = null;
+
   let targetCoins = 30;
   let timerInterval = null;
   let isDrawing = false;
@@ -437,6 +470,64 @@
   let availablePool = [];
   let participants = [];
   let allIssuedTickets = [];
+
+  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
+  const socket = io(RENDER_URL);
+
+  if (currentStreamer) {
+    document.getElementById('tiktokUsernameInput').value = currentStreamer;
+    initStreamer(currentStreamer);
+  }
+
+  window.connectTikTok = function() {
+    let rawInput = document.getElementById('tiktokUsernameInput').value.trim();
+    if (!rawInput) {
+      alert("Por favor, informe o @ do TikTok!");
+      return;
+    }
+    const cleanUser = rawInput.replace('@', '').toLowerCase();
+    localStorage.setItem('tiktok_username', cleanUser);
+    initStreamer(cleanUser);
+  };
+
+  function initStreamer(username) {
+    currentStreamer = username;
+    
+    // Atualiza link publico
+    const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
+    document.getElementById('publicLinkDisplay').innerText = `${baseUrl}?user=${username}`;
+
+    // Emite evento para o backend escutar esta live
+    socket.emit('setLiveUser', { username: username });
+
+    const statusEl = document.getElementById('statusServer');
+    statusEl.style.background = '#22c55e';
+    statusEl.innerText = `🔥 Conectado à Live do TikTok: @${username} (Firebase Ativo)`;
+
+    raffleDocRef = doc(db, "sorteios", username);
+
+    if (unsubscribeFirebase) unsubscribeFirebase();
+
+    unsubscribeFirebase = onSnapshot(raffleDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        targetCoins = data.targetCoins || 30;
+        availablePool = data.availablePool || [];
+        participants = data.participants || [];
+        allIssuedTickets = data.allIssuedTickets || [];
+        
+        document.getElementById('targetCoinsInput').value = targetCoins;
+        if (data.prizeInput) {
+          document.getElementById('prizeInput').value = data.prizeInput;
+        }
+        renderTable();
+        updateCounts();
+      } else {
+        initTicketPool();
+        saveDataToFirebase();
+      }
+    });
+  }
 
   function initTicketPool() {
     availablePool = [];
@@ -446,6 +537,7 @@
   }
 
   async function saveDataToFirebase() {
+    if (!raffleDocRef) return;
     try {
       await setDoc(raffleDocRef, {
         targetCoins: targetCoins,
@@ -459,29 +551,6 @@
     }
   }
   window.saveDataToFirebase = saveDataToFirebase;
-
-  onSnapshot(raffleDocRef, (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      targetCoins = data.targetCoins || 30;
-      availablePool = data.availablePool || [];
-      participants = data.participants || [];
-      allIssuedTickets = data.allIssuedTickets || [];
-      
-      document.getElementById('targetCoinsInput').value = targetCoins;
-      if (data.prizeInput) {
-        document.getElementById('prizeInput').value = data.prizeInput;
-      }
-      renderTable();
-      updateCounts();
-    } else {
-      initTicketPool();
-      saveDataToFirebase();
-    }
-  });
-
-  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
-  const socket = io(RENDER_URL);
 
   window.updateGoal = function() {
     targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
@@ -501,6 +570,11 @@
   }
 
   function handleGift(username, coinsReceived) {
+    if (!currentStreamer) {
+      alert("Conecte seu @ do TikTok no topo da página primeiro!");
+      return;
+    }
+
     let user = participants.find(p => p.username === username);
 
     if (!user) {
