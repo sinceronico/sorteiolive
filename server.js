@@ -1,46 +1,69 @@
 const express = require('express');
-const { createServer } = require('http');
+const http = require('http');
 const { Server } = require('socket.io');
 const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
-const httpServer = createServer(app);
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Configuração do Socket.IO com permissão CORS
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+let tiktokConnection = null;
+let currentUsername = "";
+
+function connectToTikTok(username, socket) {
+  // Se já estiver conectado a outra live, desconecta primeiro
+  if (tiktokConnection) {
+    try {
+      tiktokConnection.disconnect();
+    } catch (e) {
+      console.log("Erro ao desconectar live anterior:", e);
+    }
   }
-});
 
-// SUBSTIUA PELO SEU NOME DE USUÁRIO DO TIKTOK (SEM O @)
-const TIKTOK_USERNAME = "sinceronico";
+  currentUsername = username;
+  console.log(`📡 Tentando conectar à live de: @${username}`);
 
-// Conexão com a live do TikTok
-let tiktokLiveConnection = new WebcastPushConnection(TIKTOK_USERNAME);
+  tiktokConnection = new WebcastPushConnection(username);
 
-tiktokLiveConnection.connect().then(state => {
-  console.log(`Conectado com sucesso à live de @${TIKTOK_USERNAME}`);
-}).catch(err => {
-  console.error('Erro ao conectar na live:', err);
-});
+  tiktokConnection.connect().then(state => {
+    console.log(`✅ Conectado com sucesso à live de @${username} (RoomId: ${state.roomId})`);
+  }).catch(err => {
+    console.error(`❌ Erro ao conectar na live de @${username}:`, err);
+  });
 
-// Escuta envio de presentes na live
-tiktokLiveConnection.on('gift', data => {
-  // Ignora se o presente ainda estiver na animação de combo e não finalizado
-  if (data.giftType === 1 && data.repeatEnd === 0) return;
+  // OUVINTE DE PRESENTES (GIFTS)
+  tiktokConnection.on('gift', data => {
+    // Evita contabilizar presentes em lote ainda não finalizados se a API enviar parcial
+    if (data.giftType === 1 && data.repeatEnd === false) {
+      return; 
+    }
 
-  const coins = data.diamondCount * data.repeatCount;
-  
-  // Envia a informação para o site (index.html)
-  io.emit('giftReceived', {
-    username: data.uniqueId,
-    coins: coins
+    const coins = (data.diamondCount || 1) * data.repeatCount;
+    console.log(`🎁 Presente recebido de @${data.uniqueId}: ${coins} moedas`);
+
+    // Envia para o painel admin e público
+    io.emit('giftReceived', {
+      username: data.uniqueId,
+      coins: coins
+    });
+  });
+}
+
+io.on('connection', (socket) => {
+  console.log('⚡ Novo cliente conectado ao Socket:', socket.id);
+
+  // Escuta a ordem do Painel Admin para mudar de live
+  socket.on('setLiveUser', (data) => {
+    if (data && data.username) {
+      const cleanUser = data.username.replace('@', '').trim().toLowerCase();
+      if (cleanUser !== currentUsername) {
+        connectToTikTok(cleanUser, socket);
+      }
+    }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
