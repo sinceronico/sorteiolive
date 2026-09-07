@@ -1,27 +1,46 @@
+const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const { WebcastPushConnection } = require('tiktok-live-connector');
-const io = require('socket.io')(3000, { cors: { origin: "*" } });
 
-// Substitua pelo seu nome de usuário do TikTok
-let tiktokUsername = "SEU_USUARIO_TIKTOK";
-let tiktokConnection = new WebcastPushConnection(tiktokUsername);
+const app = express();
+const httpServer = createServer(app);
 
-tiktokConnection.connect().then(state => {
-    console.log(`Conectado à live de ${tiktokUsername}`);
-}).catch(err => {
-    console.error('Erro ao conectar na live:', err);
+// Configuração do Socket.IO com permissão CORS
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
-// Escuta evento de presente
-tiktokConnection.on('gift', data => {
-    // data.diamondCount é o valor em moedas do presente
-    // data.repeatCount informa a quantidade
-    const totalCoins = data.diamondCount * data.repeatCount;
+// SUBSTIUA PELO SEU NOME DE USUÁRIO DO TIKTOK (SEM O @)
+const TIKTOK_USERNAME = "sinceronico";
 
-    console.log(`${data.uniqueId} enviou ${totalCoins} moedas!`);
+// Conexão com a live do TikTok
+let tiktokLiveConnection = new WebcastPushConnection(TIKTOK_USERNAME);
 
-    // Envia o evento via WebSocket para a tela do sorteio
-    io.emit('giftReceived', {
-        username: data.uniqueId,
-        coins: totalCoins
-    });
+tiktokLiveConnection.connect().then(state => {
+  console.log(`Conectado com sucesso à live de @${TIKTOK_USERNAME}`);
+}).catch(err => {
+  console.error('Erro ao conectar na live:', err);
+});
+
+// Escuta envio de presentes na live
+tiktokLiveConnection.on('gift', data => {
+  // Ignora se o presente ainda estiver na animação de combo e não finalizado
+  if (data.giftType === 1 && data.repeatEnd === 0) return;
+
+  const coins = data.diamondCount * data.repeatCount;
+  
+  // Envia a informação para o site (index.html)
+  io.emit('giftReceived', {
+    username: data.uniqueId,
+    coins: coins
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+httpServer.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
