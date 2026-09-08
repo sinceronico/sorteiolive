@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel da Rifa - TikTok Live</title>
+  <title>Painel de Sorteio - TikTok Live</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Socket.IO -->
@@ -77,7 +77,7 @@
 
       <!-- CARD DE SORTEIO / ROLETA HORIZONTAL -->
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <h2 class="text-xl font-bold mb-4 text-yellow-400 flex items-center gap-2">🎰 Sorteio em Tempo Real</h2>
+        <h2 class="text-xl font-bold mb-4 text-yellow-400 flex items-center gap-2">🎰 Sorteio dos Números da Sorte</h2>
         
         <!-- Roleta Horizontal -->
         <div class="roulette-container mb-6">
@@ -94,11 +94,11 @@
         </div>
       </div>
 
-      <!-- CARD DO REGRAS DE CONVERSÃO -->
+      <!-- CARD DE REGRAS DE CONVERSÃO -->
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
         <h2 class="text-lg font-bold mb-3 text-blue-400">⚙️ Regra de Bilhetes</h2>
         <div class="flex items-center gap-4">
-          <label class="text-sm font-medium">1 Bilhete a cada:</label>
+          <label class="text-sm font-medium">1 Núm. da Sorte a cada:</label>
           <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white w-24 text-center font-bold">
           <span class="text-sm text-slate-400">Moeda(s) enviada(s)</span>
         </div>
@@ -114,7 +114,7 @@
 
     </section>
 
-    <!-- COLUNA DA DIREITA: TABELA DE PARTICIPANTES -->
+    <!-- COLUNA DA DIREITA: TABELA DE PARTICIPANTES E SEUS NÚMEROS -->
     <section class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
@@ -127,7 +127,7 @@
             <tr>
               <th class="p-3">Usuário</th>
               <th class="p-3 text-center">Moedas</th>
-              <th class="p-3 text-center">Bilhetes</th>
+              <th class="p-3">Números da Sorte</th>
             </tr>
           </thead>
           <tbody id="participantsTable" class="divide-y divide-slate-700">
@@ -145,11 +145,11 @@
   <div id="winnerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
     <div class="bg-slate-800 border-2 border-yellow-400 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl transform transition-all scale-100">
       <h2 class="text-2xl font-black text-yellow-400 mb-2">🎉 TEMOS UM GANHADOR! 🎉</h2>
-      <p class="text-slate-300 text-sm mb-6">O bilhete sorteado pertence a:</p>
+      <p class="text-slate-300 text-sm mb-4">O Número da Sorte contemplado foi:</p>
       
       <div class="bg-slate-900 border border-yellow-500/30 rounded-xl p-6 mb-6">
-        <div id="winnerName" class="text-4xl font-extrabold text-green-400 break-words mb-2">@usuario</div>
-        <div id="winnerTicketInfo" class="text-xs text-slate-400">Bilhete premiado</div>
+        <div id="winnerNumber" class="text-5xl font-black text-yellow-400 mb-2">#0000</div>
+        <div id="winnerName" class="text-2xl font-extrabold text-green-400 break-words">@usuario</div>
       </div>
 
       <button onclick="closeWinnerModal()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-extrabold py-3 rounded-lg transition">
@@ -161,8 +161,9 @@
   <script>
     const socket = io();
     
-    // Dados em memória
-    let participants = {}; // { username: { coins: 0, tickets: 0 } }
+    // Armazena dados dos participantes
+    let participants = {}; // { username: { coins: 0, tickets: [1, 2, 3...] } }
+    let nextTicketNumber = 1000; // Sequência dos números da sorte (ex: 1000, 1001, 1002...)
     let isSpinning = false;
 
     // Conexão Socket.IO
@@ -191,21 +192,29 @@
       feed.prepend(item);
     }
 
-    // Registra Moedas e Bilhetes
+    // Registra Moedas e Atribui os Números da Sorte
     function registerContribution(username, coins) {
       const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket').value) || 1;
       
       if (!participants[username]) {
-        participants[username] = { coins: 0, tickets: 0 };
+        participants[username] = { coins: 0, tickets: [] };
       }
 
       participants[username].coins += Number(coins);
-      participants[username].tickets = Math.floor(participants[username].coins / coinsPerTicket);
+
+      // Quantidade total de bilhetes que o participante tem direito
+      const targetTicketsCount = Math.floor(participants[username].coins / coinsPerTicket);
+      
+      // Atribui novos números caso tenha gerado novos bilhetes
+      while (participants[username].tickets.length < targetTicketsCount) {
+        participants[username].tickets.push(nextTicketNumber);
+        nextTicketNumber++;
+      }
 
       updateTable();
     }
 
-    // Atualiza a Tabela Lateral
+    // Atualiza a Tabela Lateral com os Números da Sorte
     function updateTable() {
       const tbody = document.getElementById('participantsTable');
       tbody.innerHTML = '';
@@ -221,14 +230,19 @@
 
       keys.forEach(username => {
         const data = participants[username];
-        totalTickets += data.tickets;
+        totalTickets += data.tickets.length;
+
+        // Formata os números da sorte em tags visuais
+        const numbersHtml = data.tickets.length > 0 
+          ? data.tickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
+          : '<span class="text-slate-500 text-xs italic">Sem números</span>';
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-700/50 transition';
         tr.innerHTML = `
           <td class="p-3 font-bold text-slate-200">@${username}</td>
           <td class="p-3 text-center text-slate-400">${data.coins}</td>
-          <td class="p-3 text-center font-extrabold text-yellow-400">${data.tickets}</td>
+          <td class="p-3">${numbersHtml}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -236,87 +250,83 @@
       document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
     }
 
-    // LÓGICA DO SORTEIO COM ROLETA HORIZONTAL
+    // LÓGICA DO SORTEIO DA ROLETA COM NÚMEROS DA SORTE
     function startDraw() {
       if (isSpinning) return;
 
-      // Cria a lista ponderada de bilhetes (ex: se o usuário tem 3 bilhetes, o nome dele entra 3 vezes)
-      let ticketPool = [];
+      // Monta a lista completa de todos os números da sorte em jogo
+      let allTickets = [];
       Object.keys(participants).forEach(username => {
-        const count = participants[username].tickets;
-        for (let i = 0; i < count; i++) {
-          ticketPool.push(username);
-        }
+        participants[username].tickets.forEach(ticketNum => {
+          allTickets.push({ number: ticketNum, username: username });
+        });
       });
 
-      if (ticketPool.length === 0) {
-        alert('Não há bilhetes suficientes para realizar o sorteio!');
+      if (allTickets.length === 0) {
+        alert('Não há Números da Sorte para realizar o sorteio!');
         return;
       }
 
       isSpinning = true;
       document.getElementById('btnDraw').disabled = true;
 
-      // Seleciona o ganhador de forma aleatória
-      const winnerIndex = Math.floor(Math.random() * ticketPool.length);
-      const winner = ticketPool[winnerIndex];
+      // Sorteia um item aleatório da lista de bilhetes
+      const winnerIndex = Math.floor(Math.random() * allTickets.length);
+      const winningTicket = allTickets[winnerIndex];
 
-      // Monta os itens do carrossel para animação
       const track = document.getElementById('rouletteTrack');
       track.style.transition = 'none';
       track.style.transform = 'translateX(0px)';
       track.innerHTML = '';
 
-      // Gera 50 cards aleatórios + o card do ganhador
       const totalCards = 60;
-      const targetCardIndex = 50; // O ganhador parará exatamente neste card
+      const targetCardIndex = 50; // Onde a roleta vai parar
 
+      // Popula o carrossel com os números da sorte
       for (let i = 0; i < totalCards; i++) {
         const card = document.createElement('div');
         card.className = 'roulette-card';
         
-        let cardUser = (i === targetCardIndex) ? winner : ticketPool[Math.floor(Math.random() * ticketPool.length)];
+        let cardData = (i === targetCardIndex) ? winningTicket : allTickets[Math.floor(Math.random() * allTickets.length)];
         
         card.innerHTML = `
-          <span class="text-xs text-slate-400">#${i + 1}</span>
-          <span class="text-sm font-extrabold truncate max-w-[120px]">@${cardUser}</span>
+          <span class="text-xl font-black text-yellow-400">#${cardData.number}</span>
+          <span class="text-xs text-slate-300 truncate max-w-[120px]">@${cardData.username}</span>
         `;
         track.appendChild(card);
       }
 
-      // Cálculo do tempo/delay baseado no número de participantes na rifa
-      const baseDuration = 4; // tempo base em segundos
-      const extraDuration = Math.min(ticketPool.length * 0.1, 4); // até +4 segundos extra
+      // Tempo de roleta com base na quantidade de números em jogo
+      const baseDuration = 4;
+      const extraDuration = Math.min(allTickets.length * 0.1, 4);
       const totalDuration = baseDuration + extraDuration;
 
-      // Posição para alinhar o card do ganhador ao centro da ponteira vermelha
-      const cardWidth = 156; // 140px min-width + 16px margens
+      // Centraliza a parada no card vencedor
+      const cardWidth = 156;
       const containerWidth = document.querySelector('.roulette-container').offsetWidth;
       const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
 
-      // Inicia a animação de rotação
       setTimeout(() => {
         track.style.transition = `transform ${totalDuration}s cubic-bezier(0.15, 0.9, 0.2, 1)`;
         track.style.transform = `translateX(-${stopPosition}px)`;
       }, 50);
 
-      // Exibe o ganhador ao término da animação
       setTimeout(() => {
-        showWinner(winner);
+        showWinner(winningTicket);
         isSpinning = false;
         document.getElementById('btnDraw').disabled = false;
       }, (totalDuration * 1000) + 300);
     }
 
-    // Exibe Modal do Ganhador com Confetes
-    function showWinner(winner) {
-      document.getElementById('winnerName').innerText = `@${winner}`;
+    // Exibe o Modal do Ganhador com número e nome
+    function showWinner(ticket) {
+      document.getElementById('winnerNumber').innerText = `#${ticket.number}`;
+      document.getElementById('winnerName').innerText = `@${ticket.username}`;
       document.getElementById('winnerModal').classList.remove('hidden');
 
-      // Lança os confetes na tela
       confetti({
-        particleCount: 120,
-        spread: 80,
+        particleCount: 150,
+        spread: 90,
         origin: { y: 0.6 }
       });
     }
@@ -325,10 +335,11 @@
       document.getElementById('winnerModal').classList.add('hidden');
     }
 
-    // Limpa dados da Rifa
+    // Limpa os dados da Rifa
     function clearData() {
-      if (confirm('Tem certeza que deseja zerar todos os dados da rifa?')) {
+      if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte?')) {
         participants = {};
+        nextTicketNumber = 1000;
         updateTable();
         document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
         document.getElementById('rouletteTrack').innerHTML = '<div class="roulette-card">Aguardando...</div>';
