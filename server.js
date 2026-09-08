@@ -5,65 +5,104 @@ const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
-let tiktokConnection = null;
-let currentUsername = "";
+let tiktokLiveConnection = null;
+let activeStreamer = "";
 
-function connectToTikTok(username, socket) {
-  // Se já estiver conectado a outra live, desconecta primeiro
-  if (tiktokConnection) {
-    try {
-      tiktokConnection.disconnect();
-    } catch (e) {
-      console.log("Erro ao desconectar live anterior:", e);
-    }
+function connectToTikTok(username) {
+  const cleanUsername = username.replace('@', '').trim().toLowerCase();
+
+  if (!cleanUsername) return;
+
+  // Se já estiver conectado no mesmo usuário, ignora
+  if (tiktokLiveConnection && activeStreamer === cleanUsername) {
+    console.log(`⚠️ Já conectado à live de @${cleanUsername}`);
+    return;
   }
 
-  currentUsername = username;
-  console.log(`📡 Tentando conectar à live de: @${username}`);
+  // Desconecta live anterior com segurança
+  if (tiktokLiveConnection) {
+    try {
+      tiktokLiveConnection.disconnect();
+      console.log(`🔌 Desconectado da live anterior (@${activeStreamer})`);
+    } catch (err) {
+      console.error("Erro ao desconectar:", err);
+    }
+    tiktokLiveConnection = null;
+  }
 
-  tiktokConnection = new WebcastPushConnection(username);
+  activeStreamer = cleanUsername;
+  console.log(`📡 Tentando conectar à live de: @${activeStreamer}...`);
 
-  tiktokConnection.connect().then(state => {
-    console.log(`✅ Conectado com sucesso à live de @${username} (RoomId: ${state.roomId})`);
+  // Cria nova conexão configurada para evitar bloqueios do TikTok
+  tiktokLiveConnection = new WebcastPushConnection(activeStreamer, {
+    processInitialData: false,
+    enableExtendedGiftInfo: true,
+    requestPollingIntervalMs: 2000,
+    clientParams: {
+      "app_language": "pt-BR",
+      "device_platform": "web"
+    }
+  });
+
+  tiktokLiveConnection.connect().then(state => {
+    console.log(`✅ CONECTADO com sucesso à live de @${activeStreamer} (Room ID: ${state.roomId})`);
+    io.emit('statusUpdate', { status: 'connected', streamer: activeStreamer });
   }).catch(err => {
-    console.error(`❌ Erro ao conectar na live de @${username}:`, err);
+    console.error(`❌ Falha ao conectar em @${activeStreamer}:`, err.message || err);
+    io.emit('statusUpdate', { status: 'error', message: 'Live offline ou não encontrada' });
   });
 
   // OUVINTE DE PRESENTES (GIFTS)
-  tiktokConnection.on('gift', data => {
-    // Evita contabilizar presentes em lote ainda não finalizados se a API enviar parcial
+  tiktokLiveConnection.on('gift', data => {
+    // Evita duplicação de presentes contínuos (combos) até finalizarem
     if (data.giftType === 1 && data.repeatEnd === false) {
-      return; 
+      return;
     }
 
-    const coins = (data.diamondCount || 1) * data.repeatCount;
-    console.log(`🎁 Presente recebido de @${data.uniqueId}: ${coins} moedas`);
+    const giftCoins = (data.diamondCount || 1) * (data.repeatCount || 1);
+    const donorUser = data.uniqueId;
 
-    // Envia para o painel admin e público
+    console.log(`🎁 [GIFT] @${donorUser} enviou ${giftCoins} moedas na live de @${activeStreamer}`);
+
+    // Dispara presente para o admin em tempo real
     io.emit('giftReceived', {
-      username: data.uniqueId,
-      coins: coins
+      username: donorUser,
+      coins: giftCoins,
+      streamer: activeStreamer
     });
+  });
+
+  tiktokLiveConnection.on('streamEnd', () => {
+    console.log(`🔴 Live de @${activeStreamer} foi encerrada.`);
+    io.emit('statusUpdate', { status: 'ended', streamer: activeStreamer });
   });
 }
 
+// CONEXÃO VIA SOCKET.IO COM O PAINEL
 io.on('connection', (socket) => {
-  console.log('⚡ Novo cliente conectado ao Socket:', socket.id);
+  console.log(`⚡ Cliente conectado ao Socket: ${socket.id}`);
 
-  // Escuta a ordem do Painel Admin para mudar de live
+  // Se já houver um streamer ativo, informa o novo cliente
+  if (activeStreamer) {
+    socket.emit('statusUpdate', { status: 'connected', streamer: activeStreamer });
+  }
+
+  // Evento vindo do painel admin ao clicar em "ALTERAR / CONECTAR LIVE"
   socket.on('setLiveUser', (data) => {
     if (data && data.username) {
-      const cleanUser = data.username.replace('@', '').trim().toLowerCase();
-      if (cleanUser !== currentUsername) {
-        connectToTikTok(cleanUser, socket);
-      }
+      connectToTikTok(data.username);
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor escutando na porta ${PORT}`);
 });
