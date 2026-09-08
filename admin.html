@@ -3,442 +3,336 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Rifa & Sorteio - TikTok Live</title>
-  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <title>Painel da Rifa - TikTok Live</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Biblioteca de Confetes -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    body {
+    /* Estilos do Carrossel do Sorteio */
+    .roulette-container {
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+      height: 120px;
       background-color: #0f172a;
-      color: #f8fafc;
-      padding: 20px;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .header h1 {
-      color: #38bdf8;
-      font-size: 1.8rem;
-    }
-
-    .container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    @media (max-width: 900px) {
-      .container {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .card {
-      background-color: #1e293b;
-      border: 1px solid #334155;
+      border: 3px solid #3b82f6;
       border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
-
-    .card h2 {
-      font-size: 1.2rem;
-      color: #f1f5f9;
-      margin-bottom: 16px;
-      border-bottom: 1px solid #334155;
-      padding-bottom: 8px;
+    .roulette-track {
+      display: flex;
+      align-items: center;
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      will-change: transform;
+      transition-timing-function: cubic-bezier(0.1, 0.9, 0.2, 1);
     }
-
-    .form-group {
-      margin-bottom: 14px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 0.85rem;
-      color: #94a3b8;
-    }
-
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      padding: 10px;
-      background-color: #0f172a;
-      border: 1px solid #475569;
-      border-radius: 6px;
+    .roulette-card {
+      min-width: 140px;
+      height: 90px;
+      margin: 0 8px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border: 2px solid #475569;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       color: #fff;
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    input:focus {
-      border-color: #38bdf8;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 10px;
-      background-color: #0284c7;
-      color: white;
-      border: none;
-      border-radius: 6px;
       font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-
-    .btn:hover {
-      background-color: #0369a1;
-    }
-
-    .btn-danger {
-      background-color: #be123c;
-      margin-top: 10px;
-    }
-
-    .btn-danger:hover {
-      background-color: #9f1239;
-    }
-
-    .status-badge {
-      margin-top: 12px;
-      padding: 10px;
-      border-radius: 6px;
-      text-align: center;
-      font-weight: 600;
-      font-size: 0.9rem;
-      background-color: #334155;
-      color: #cbd5e1;
-    }
-
-    .status-badge.connected {
-      background-color: #065f46;
-      color: #34d399;
-    }
-
-    .status-badge.error {
-      background-color: #881337;
-      color: #f87171;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    th, td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #334155;
-      font-size: 0.9rem;
-    }
-
-    th {
-      background-color: #0f172a;
-      color: #38bdf8;
-    }
-
-    .tickets-tag {
-      background-color: #0284c7;
-      color: #fff;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      margin-right: 4px;
-      display: inline-block;
-      margin-bottom: 2px;
-    }
-
-    .gift-log {
-      background-color: #0f172a;
-      border-radius: 6px;
-      padding: 12px;
-      max-height: 250px;
-      overflow-y: auto;
-      font-size: 0.85rem;
-    }
-
-    .gift-item {
-      padding: 6px 0;
-      border-bottom: 1px solid #1e293b;
-      color: #fbbf24;
+    .roulette-pointer {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 100%;
+      background-color: #ef4444;
+      z-index: 20;
+      box-shadow: 0 0 10px #ef4444;
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-900 text-white min-h-screen p-6 font-sans">
 
-  <div class="header">
-    <h1>🎟️ Painel de Controle de Rifas - TikTok Live</h1>
-  </div>
+  <!-- Cabeçalho -->
+  <header class="max-w-6xl mx-auto flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+    <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
+    <div class="flex items-center gap-3">
+      <span id="statusBadge" class="px-3 py-1 bg-green-600 text-xs font-bold rounded-full uppercase">Status: Online</span>
+      <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
+    </div>
+  </header>
 
-  <div class="container">
-    
-    <!-- COLUNA 1: CONEXÃO E REGRAS -->
-    <div>
-      <div class="card" style="margin-bottom: 20px;">
-        <h2>📡 Conexão com o TikTok</h2>
+  <main class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- COLUNA DA ESQUERDA: CONFIGURAÇÃO & SORTEIO -->
+    <section class="md:col-span-2 flex flex-col gap-6">
+
+      <!-- CARD DE SORTEIO / ROLETA HORIZONTAL -->
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h2 class="text-xl font-bold mb-4 text-yellow-400 flex items-center gap-2">🎰 Sorteio em Tempo Real</h2>
         
-        <div class="form-group">
-          <label for="streamerInput">Usuário do TikTok (@):</label>
-          <input type="text" id="streamerInput" placeholder="Ex: gabriellymntro">
+        <!-- Roleta Horizontal -->
+        <div class="roulette-container mb-6">
+          <div class="roulette-pointer"></div>
+          <div id="rouletteTrack" class="roulette-track">
+            <div class="roulette-card">Aguardando...</div>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="sessionIdInput">TikTok Session ID (Opcional - Evita erro 403):</label>
-          <input type="text" id="sessionIdInput" placeholder="Cole o cookie sessionid aqui...">
+        <div class="flex gap-4">
+          <button onclick="startDraw()" id="btnDraw" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-extrabold py-3 px-6 rounded-lg text-lg shadow-lg transition transform active:scale-95">
+            🎲 REALIZAR SORTEIO
+          </button>
         </div>
-
-        <button class="btn" onclick="connectLive()">Conectar Live</button>
-        <div id="statusBox" class="status-badge">Desconectado</div>
       </div>
 
-      <div class="card">
-        <h2>⚙️ Configuração da Rifa</h2>
-
-        <div class="form-group">
-          <label for="targetCoinsInput">Custo de 1 Bilhete (em Moedas):</label>
-          <input type="number" id="targetCoinsInput" value="5" min="1" onchange="updateTargetCoins()">
+      <!-- CARD DO REGRAS DE CONVERSÃO -->
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h2 class="text-lg font-bold mb-3 text-blue-400">⚙️ Regra de Bilhetes</h2>
+        <div class="flex items-center gap-4">
+          <label class="text-sm font-medium">1 Bilhete a cada:</label>
+          <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white w-24 text-center font-bold">
+          <span class="text-sm text-slate-400">Moeda(s) enviada(s)</span>
         </div>
-
-        <div class="form-group">
-          <label for="maxTicketsInput">Total de Bilhetes na Rifa:</label>
-          <input type="number" id="maxTicketsInput" value="100" min="1" onchange="updateMaxTickets()">
-        </div>
-
-        <button class="btn btn-danger" onclick="resetRaffle()">Zerar Rifa & Participantes</button>
       </div>
+
+      <!-- FEED DE PRESENTES -->
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h2 class="text-lg font-bold mb-3 text-emerald-400">🎁 Últimos Presentes Recebidos</h2>
+        <div id="giftFeed" class="space-y-2 max-h-48 overflow-y-auto pr-2 text-sm">
+          <p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- COLUNA DA DIREITA: TABELA DE PARTICIPANTES -->
+    <section class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
+        <span id="totalTicketsCount" class="text-xs bg-blue-900 text-blue-200 px-2.5 py-1 rounded-full font-bold">Total Bilhetes: 0</span>
+      </div>
+
+      <div class="flex-1 overflow-y-auto max-h-[500px]">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0">
+            <tr>
+              <th class="p-3">Usuário</th>
+              <th class="p-3 text-center">Moedas</th>
+              <th class="p-3 text-center">Bilhetes</th>
+            </tr>
+          </thead>
+          <tbody id="participantsTable" class="divide-y divide-slate-700">
+            <tr>
+              <td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DO GANHADOR -->
+  <div id="winnerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 border-2 border-yellow-400 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl transform transition-all scale-100">
+      <h2 class="text-2xl font-black text-yellow-400 mb-2">🎉 TEMOS UM GANHADOR! 🎉</h2>
+      <p class="text-slate-300 text-sm mb-6">O bilhete sorteado pertence a:</p>
+      
+      <div class="bg-slate-900 border border-yellow-500/30 rounded-xl p-6 mb-6">
+        <div id="winnerName" class="text-4xl font-extrabold text-green-400 break-words mb-2">@usuario</div>
+        <div id="winnerTicketInfo" class="text-xs text-slate-400">Bilhete premiado</div>
+      </div>
+
+      <button onclick="closeWinnerModal()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-extrabold py-3 rounded-lg transition">
+        FECHAR E CONTINUAR
+      </button>
     </div>
-
-    <!-- COLUNA 2: PARTICIPANTES E PRESENTES -->
-    <div>
-      <div class="card" style="margin-bottom: 20px;">
-        <h2>👥 Tabela de Doadores e Bilhetes</h2>
-        <div style="max-height: 300px; overflow-y: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Usuário</th>
-                <th>Moedas</th>
-                <th>Bilhetes</th>
-              </tr>
-            </thead>
-            <tbody id="participantsTable">
-              <tr>
-                <td colspan="3" style="text-align: center; color: #64748b;">Nenhum participante registrado ainda.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>🎁 Feed de Presentes em Tempo Real</h2>
-        <div id="giftLog" class="gift-log">
-          <div style="color: #64748b;">Aguardando presentes da live...</div>
-        </div>
-      </div>
-    </div>
-
   </div>
 
   <script>
-    // URL do seu servidor Backend no Render
-    const RENDER_URL = 'https://sorteio-backend-live.onrender.com'; 
+    const socket = io();
+    
+    // Dados em memória
+    let participants = {}; // { username: { coins: 0, tickets: 0 } }
+    let isSpinning = false;
 
-    const socket = io(RENDER_URL);
+    // Conexão Socket.IO
+    socket.on('connect', () => {
+      console.log('Conectado ao servidor Socket.IO');
+    });
 
-    // Estado da Rifa
-    let targetCoins = 5;
-    let maxTickets = 100;
-    let participants = [];
-    let issuedTickets = [];
+    // Recebimento de Presentes
+    socket.on('giftReceived', (data) => {
+      addGiftToFeed(data.username, data.coins);
+      registerContribution(data.username, data.coins);
+    });
 
-    // Carregar configurações locais
-    window.onload = () => {
-      const savedSession = localStorage.getItem('tiktok_session_id');
-      if (savedSession) {
-        document.getElementById('sessionIdInput').value = savedSession;
+    // Adiciona ao Feed
+    function addGiftToFeed(username, coins) {
+      const feed = document.getElementById('giftFeed');
+      if (feed.children[0] && feed.children[0].tagName === 'P') {
+        feed.innerHTML = '';
       }
-
-      const savedData = localStorage.getItem('raffle_data');
-      if (savedData) {
-        try {
-          const parsed = JSON.parse(savedData);
-          participants = parsed.participants || [];
-          issuedTickets = parsed.issuedTickets || [];
-          targetCoins = parsed.targetCoins || 5;
-          maxTickets = parsed.maxTickets || 100;
-
-          document.getElementById('targetCoinsInput').value = targetCoins;
-          document.getElementById('maxTicketsInput').value = maxTickets;
-          renderParticipantsTable();
-        } catch (e) {
-          console.error("Erro ao carregar dados locais:", e);
-        }
-      }
-    };
-
-    function saveData() {
-      localStorage.setItem('raffle_data', JSON.stringify({
-        participants,
-        issuedTickets,
-        targetCoins,
-        maxTickets
-      }));
+      const item = document.createElement('div');
+      item.className = 'bg-slate-900 p-2.5 rounded border-l-4 border-emerald-500 flex justify-between items-center';
+      item.innerHTML = `
+        <span class="font-bold text-slate-200">@${username}</span>
+        <span class="text-emerald-400 font-extrabold">+${coins} moeda(s)</span>
+      `;
+      feed.prepend(item);
     }
 
-    function updateTargetCoins() {
-      targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
-      saveData();
-    }
-
-    function updateMaxTickets() {
-      maxTickets = parseInt(document.getElementById('maxTicketsInput').value) || 100;
-      saveData();
-    }
-
-    function connectLive() {
-      const username = document.getElementById('streamerInput').value.trim();
-      const sessionId = document.getElementById('sessionIdInput').value.trim();
-
-      if (!username) {
-        alert('Por favor, informe o nome de usuário do TikTok.');
-        return;
+    // Registra Moedas e Bilhetes
+    function registerContribution(username, coins) {
+      const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket').value) || 1;
+      
+      if (!participants[username]) {
+        participants[username] = { coins: 0, tickets: 0 };
       }
 
-      if (sessionId) {
-        localStorage.setItem('tiktok_session_id', sessionId);
-      } else {
-        localStorage.removeItem('tiktok_session_id');
-      }
+      participants[username].coins += Number(coins);
+      participants[username].tickets = Math.floor(participants[username].coins / coinsPerTicket);
 
-      updateStatus('Conectando...', '');
-
-      socket.emit('setLiveUser', {
-        username: username,
-        sessionId: sessionId
-      });
+      updateTable();
     }
 
-    function generateUniqueTicket() {
-      if (issuedTickets.length >= maxTickets) return null;
-
-      let ticket;
-      do {
-        ticket = Math.floor(Math.random() * maxTickets) + 1;
-      } while (issuedTickets.includes(ticket));
-
-      issuedTickets.push(ticket);
-      return ticket;
-    }
-
-    function handleGift(rawUsername, coinsReceived) {
-      const username = rawUsername.trim().toLowerCase();
-
-      let user = participants.find(p => p.username === username);
-
-      if (!user) {
-        user = { username: username, totalCoins: 0, tickets: [] };
-        participants.push(user);
-      }
-
-      user.totalCoins += coinsReceived;
-
-      // Calcula quantos bilhetes a pessoa deve ter com base no total acumulado de moedas
-      const expectedTicketsCount = Math.floor(user.totalCoins / targetCoins);
-      const newTicketsNeeded = expectedTicketsCount - user.tickets.length;
-
-      for (let i = 0; i < newTicketsNeeded; i++) {
-        const ticketNum = generateUniqueTicket();
-        if (ticketNum !== null) {
-          user.tickets.push(ticketNum);
-        }
-      }
-
-      saveData();
-      renderParticipantsTable();
-    }
-
-    function renderParticipantsTable() {
+    // Atualiza a Tabela Lateral
+    function updateTable() {
       const tbody = document.getElementById('participantsTable');
       tbody.innerHTML = '';
 
-      if (participants.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #64748b;">Nenhum participante registrado ainda.</td></tr>';
+      let totalTickets = 0;
+      const keys = Object.keys(participants);
+
+      if (keys.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td></tr>';
+        document.getElementById('totalTicketsCount').innerText = 'Total Bilhetes: 0';
         return;
       }
 
-      // Ordena por maior quantidade de bilhetes/moedas
-      participants.sort((a, b) => b.totalCoins - a.totalCoins);
+      keys.forEach(username => {
+        const data = participants[username];
+        totalTickets += data.tickets;
 
-      participants.forEach(user => {
         const tr = document.createElement('tr');
-        
-        const ticketsHTML = user.tickets.length > 0 
-          ? user.tickets.map(t => `<span class="tickets-tag">#${t}</span>`).join('') 
-          : '<em style="color: #64748b;">Sem bilhetes</em>';
-
+        tr.className = 'hover:bg-slate-700/50 transition';
         tr.innerHTML = `
-          <td><strong>@${user.username}</strong></td>
-          <td>${user.totalCoins} 🪙</td>
-          <td>${ticketsHTML}</td>
+          <td class="p-3 font-bold text-slate-200">@${username}</td>
+          <td class="p-3 text-center text-slate-400">${data.coins}</td>
+          <td class="p-3 text-center font-extrabold text-yellow-400">${data.tickets}</td>
         `;
         tbody.appendChild(tr);
       });
+
+      document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
     }
 
-    function resetRaffle() {
-      if (confirm('Tem certeza que deseja zerar a rifa e limpar todos os participantes e bilhetes?')) {
-        participants = [];
-        issuedTickets = [];
-        localStorage.removeItem('raffle_data');
-        renderParticipantsTable();
-        alert('Rifa resetada com sucesso!');
+    // LÓGICA DO SORTEIO COM ROLETA HORIZONTAL
+    function startDraw() {
+      if (isSpinning) return;
+
+      // Cria a lista ponderada de bilhetes (ex: se o usuário tem 3 bilhetes, o nome dele entra 3 vezes)
+      let ticketPool = [];
+      Object.keys(participants).forEach(username => {
+        const count = participants[username].tickets;
+        for (let i = 0; i < count; i++) {
+          ticketPool.push(username);
+        }
+      });
+
+      if (ticketPool.length === 0) {
+        alert('Não há bilhetes suficientes para realizar o sorteio!');
+        return;
       }
+
+      isSpinning = true;
+      document.getElementById('btnDraw').disabled = true;
+
+      // Seleciona o ganhador de forma aleatória
+      const winnerIndex = Math.floor(Math.random() * ticketPool.length);
+      const winner = ticketPool[winnerIndex];
+
+      // Monta os itens do carrossel para animação
+      const track = document.getElementById('rouletteTrack');
+      track.style.transition = 'none';
+      track.style.transform = 'translateX(0px)';
+      track.innerHTML = '';
+
+      // Gera 50 cards aleatórios + o card do ganhador
+      const totalCards = 60;
+      const targetCardIndex = 50; // O ganhador parará exatamente neste card
+
+      for (let i = 0; i < totalCards; i++) {
+        const card = document.createElement('div');
+        card.className = 'roulette-card';
+        
+        let cardUser = (i === targetCardIndex) ? winner : ticketPool[Math.floor(Math.random() * ticketPool.length)];
+        
+        card.innerHTML = `
+          <span class="text-xs text-slate-400">#${i + 1}</span>
+          <span class="text-sm font-extrabold truncate max-w-[120px]">@${cardUser}</span>
+        `;
+        track.appendChild(card);
+      }
+
+      // Cálculo do tempo/delay baseado no número de participantes na rifa
+      const baseDuration = 4; // tempo base em segundos
+      const extraDuration = Math.min(ticketPool.length * 0.1, 4); // até +4 segundos extra
+      const totalDuration = baseDuration + extraDuration;
+
+      // Posição para alinhar o card do ganhador ao centro da ponteira vermelha
+      const cardWidth = 156; // 140px min-width + 16px margens
+      const containerWidth = document.querySelector('.roulette-container').offsetWidth;
+      const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
+
+      // Inicia a animação de rotação
+      setTimeout(() => {
+        track.style.transition = `transform ${totalDuration}s cubic-bezier(0.15, 0.9, 0.2, 1)`;
+        track.style.transform = `translateX(-${stopPosition}px)`;
+      }, 50);
+
+      // Exibe o ganhador ao término da animação
+      setTimeout(() => {
+        showWinner(winner);
+        isSpinning = false;
+        document.getElementById('btnDraw').disabled = false;
+      }, (totalDuration * 1000) + 300);
     }
 
-    // Socket Handlers
-    socket.on('statusUpdate', (data) => {
-      if (data.status === 'connected') {
-        updateStatus(`✅ Conectado a @${data.streamer}`, 'connected');
-      } else if (data.status === 'error') {
-        updateStatus(`❌ Erro: ${data.message || 'Falha ao conectar'}`, 'error');
-      } else if (data.status === 'ended') {
-        updateStatus(`🔴 Live de @${data.streamer} encerrada`, 'error');
+    // Exibe Modal do Ganhador com Confetes
+    function showWinner(winner) {
+      document.getElementById('winnerName').innerText = `@${winner}`;
+      document.getElementById('winnerModal').classList.remove('hidden');
+
+      // Lança os confetes na tela
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+    }
+
+    function closeWinnerModal() {
+      document.getElementById('winnerModal').classList.add('hidden');
+    }
+
+    // Limpa dados da Rifa
+    function clearData() {
+      if (confirm('Tem certeza que deseja zerar todos os dados da rifa?')) {
+        participants = {};
+        updateTable();
+        document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
+        document.getElementById('rouletteTrack').innerHTML = '<div class="roulette-card">Aguardando...</div>';
       }
-    });
-
-    socket.on('giftReceived', (data) => {
-      const giftLog = document.getElementById('giftLog');
-      
-      if (giftLog.innerHTML.includes('Aguardando presentes')) {
-        giftLog.innerHTML = '';
-      }
-
-      const item = document.createElement('div');
-      item.className = 'gift-item';
-      item.innerHTML = `🎁 <strong>@${data.username}</strong> enviou <strong>${data.coins}</strong> moeda(s)!`;
-      giftLog.prepend(item);
-
-      // Processa o presente na rifa
-      handleGift(data.username, Number(data.coins));
-    });
-
-    function updateStatus(text, className) {
-      const statusBox = document.getElementById('statusBox');
-      statusBox.innerText = text;
-      statusBox.className = `status-badge ${className}`;
     }
   </script>
 </body>
