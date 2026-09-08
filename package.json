@@ -1,13 +1,13 @@
 {
-  "name": "sorteio-backend-live",
+  "name": "meu-projeto-tiktok",
   "version": "1.0.0",
-  "description": "Backend para captura de presentes da live",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-  "express": "^4.18.2",
-  "socket.io": "^4.7.4",
-  "tiktok-live-connector": "latest"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4",
+    "tiktok-live-connector": "latest"
+  }
 }
