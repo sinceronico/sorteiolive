@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel Admin - Conexão Live TikTok</title>
+  <title>Painel de Rifa & Sorteio - TikTok Live</title>
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <style>
     * {
@@ -16,66 +16,83 @@
     body {
       background-color: #0f172a;
       color: #f8fafc;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
       padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      color: #38bdf8;
+      font-size: 1.8rem;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
     }
 
     .card {
       background-color: #1e293b;
       border: 1px solid #334155;
       border-radius: 12px;
-      padding: 24px;
-      width: 100%;
-      max-width: 500px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
 
-    h2 {
-      margin-bottom: 20px;
-      font-size: 1.4rem;
-      color: #38bdf8;
-      text-align: center;
+    .card h2 {
+      font-size: 1.2rem;
+      color: #f1f5f9;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
     }
 
     .form-group {
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     label {
       display: block;
       margin-bottom: 6px;
-      font-size: 0.875rem;
+      font-size: 0.85rem;
       color: #94a3b8;
     }
 
-    input[type="text"] {
+    input[type="text"], input[type="number"] {
       width: 100%;
-      padding: 10px 14px;
+      padding: 10px;
       background-color: #0f172a;
       border: 1px solid #475569;
       border-radius: 6px;
       color: #fff;
       font-size: 0.95rem;
       outline: none;
-      transition: border-color 0.2s;
     }
 
-    input[type="text"]:focus {
+    input:focus {
       border-color: #38bdf8;
     }
 
     .btn {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       background-color: #0284c7;
       color: white;
       border: none;
       border-radius: 6px;
       font-weight: bold;
-      font-size: 1rem;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -84,8 +101,17 @@
       background-color: #0369a1;
     }
 
+    .btn-danger {
+      background-color: #be123c;
+      margin-top: 10px;
+    }
+
+    .btn-danger:hover {
+      background-color: #9f1239;
+    }
+
     .status-badge {
-      margin-top: 20px;
+      margin-top: 12px;
       padding: 10px;
       border-radius: 6px;
       text-align: center;
@@ -105,12 +131,40 @@
       color: #f87171;
     }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #334155;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background-color: #0f172a;
+      color: #38bdf8;
+    }
+
+    .tickets-tag {
+      background-color: #0284c7;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      margin-right: 4px;
+      display: inline-block;
+      margin-bottom: 2px;
+    }
+
     .gift-log {
-      margin-top: 20px;
       background-color: #0f172a;
       border-radius: 6px;
       padding: 12px;
-      max-height: 200px;
+      max-height: 250px;
       overflow-y: auto;
       font-size: 0.85rem;
     }
@@ -124,53 +178,145 @@
 </head>
 <body>
 
-  <div class="card">
-    <h2>📡 Conexão TikTok Live</h2>
+  <div class="header">
+    <h1>🎟️ Painel de Controle de Rifas - TikTok Live</h1>
+  </div>
 
-    <div class="form-group">
-      <label for="streamerInput">Usuário do TikTok (@):</label>
-      <input type="text" id="streamerInput" placeholder="Ex: gabriellymntro">
+  <div class="container">
+    
+    <!-- COLUNA 1: CONEXÃO E REGRAS -->
+    <div>
+      <div class="card" style="margin-bottom: 20px;">
+        <h2>📡 Conexão com o TikTok</h2>
+        
+        <div class="form-group">
+          <label for="streamerInput">Usuário do TikTok (@):</label>
+          <input type="text" id="streamerInput" placeholder="Ex: gabriellymntro">
+        </div>
+
+        <div class="form-group">
+          <label for="sessionIdInput">TikTok Session ID (Opcional - Evita erro 403):</label>
+          <input type="text" id="sessionIdInput" placeholder="Cole o cookie sessionid aqui...">
+        </div>
+
+        <button class="btn" onclick="connectLive()">Conectar Live</button>
+        <div id="statusBox" class="status-badge">Desconectado</div>
+      </div>
+
+      <div class="card">
+        <h2>⚙️ Configuração da Rifa</h2>
+
+        <div class="form-group">
+          <label for="targetCoinsInput">Custo de 1 Bilhete (em Moedas):</label>
+          <input type="number" id="targetCoinsInput" value="5" min="1" onchange="updateTargetCoins()">
+        </div>
+
+        <div class="form-group">
+          <label for="maxTicketsInput">Total de Bilhetes na Rifa:</label>
+          <input type="number" id="maxTicketsInput" value="100" min="1" onchange="updateMaxTickets()">
+        </div>
+
+        <button class="btn btn-danger" onclick="resetRaffle()">Zerar Rifa & Participantes</button>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="sessionIdInput">TikTok Session ID (Evita bloqueios):</label>
-      <input type="text" id="sessionIdInput" placeholder="Cole seu sessionid dos cookies do TikTok...">
+    <!-- COLUNA 2: PARTICIPANTES E PRESENTES -->
+    <div>
+      <div class="card" style="margin-bottom: 20px;">
+        <h2>👥 Tabela de Doadores e Bilhetes</h2>
+        <div style="max-height: 300px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Moedas</th>
+                <th>Bilhetes</th>
+              </tr>
+            </thead>
+            <tbody id="participantsTable">
+              <tr>
+                <td colspan="3" style="text-align: center; color: #64748b;">Nenhum participante registrado ainda.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🎁 Feed de Presentes em Tempo Real</h2>
+        <div id="giftLog" class="gift-log">
+          <div style="color: #64748b;">Aguardando presentes da live...</div>
+        </div>
+      </div>
     </div>
 
-    <button class="btn" onclick="connectLive()">Conectar Live</button>
-
-    <div id="statusBox" class="status-badge">Desconectado</div>
-
-    <h3 style="margin-top: 20px; font-size: 1rem; color: #94a3b8;">🎁 Presentes Recebidos:</h3>
-    <div id="giftLog" class="gift-log">
-      <div style="color: #64748b;">Nenhum presente recebido ainda.</div>
-    </div>
   </div>
 
   <script>
-    // ALTERE AQUI PARA A URL DO SEU BACKEND NO RENDER
+    // URL do seu servidor Backend no Render
     const RENDER_URL = 'https://sorteio-backend-live.onrender.com'; 
 
     const socket = io(RENDER_URL);
 
-    // Carrega o Session ID salvo previamente no navegador
+    // Estado da Rifa
+    let targetCoins = 5;
+    let maxTickets = 100;
+    let participants = [];
+    let issuedTickets = [];
+
+    // Carregar configurações locais
     window.onload = () => {
       const savedSession = localStorage.getItem('tiktok_session_id');
       if (savedSession) {
         document.getElementById('sessionIdInput').value = savedSession;
       }
+
+      const savedData = localStorage.getItem('raffle_data');
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          participants = parsed.participants || [];
+          issuedTickets = parsed.issuedTickets || [];
+          targetCoins = parsed.targetCoins || 5;
+          maxTickets = parsed.maxTickets || 100;
+
+          document.getElementById('targetCoinsInput').value = targetCoins;
+          document.getElementById('maxTicketsInput').value = maxTickets;
+          renderParticipantsTable();
+        } catch (e) {
+          console.error("Erro ao carregar dados locais:", e);
+        }
+      }
     };
+
+    function saveData() {
+      localStorage.setItem('raffle_data', JSON.stringify({
+        participants,
+        issuedTickets,
+        targetCoins,
+        maxTickets
+      }));
+    }
+
+    function updateTargetCoins() {
+      targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
+      saveData();
+    }
+
+    function updateMaxTickets() {
+      maxTickets = parseInt(document.getElementById('maxTicketsInput').value) || 100;
+      saveData();
+    }
 
     function connectLive() {
       const username = document.getElementById('streamerInput').value.trim();
       const sessionId = document.getElementById('sessionIdInput').value.trim();
 
       if (!username) {
-        alert('Por favor, informe o usuário do TikTok.');
+        alert('Por favor, informe o nome de usuário do TikTok.');
         return;
       }
 
-      // Salva o Session ID no navegador para não precisar colar toda vez
       if (sessionId) {
         localStorage.setItem('tiktok_session_id', sessionId);
       } else {
@@ -179,14 +325,90 @@
 
       updateStatus('Conectando...', '');
 
-      // Envia evento para o backend
       socket.emit('setLiveUser', {
         username: username,
         sessionId: sessionId
       });
     }
 
-    // Atualizações de Status vindas do Server
+    function generateUniqueTicket() {
+      if (issuedTickets.length >= maxTickets) return null;
+
+      let ticket;
+      do {
+        ticket = Math.floor(Math.random() * maxTickets) + 1;
+      } while (issuedTickets.includes(ticket));
+
+      issuedTickets.push(ticket);
+      return ticket;
+    }
+
+    function handleGift(rawUsername, coinsReceived) {
+      const username = rawUsername.trim().toLowerCase();
+
+      let user = participants.find(p => p.username === username);
+
+      if (!user) {
+        user = { username: username, totalCoins: 0, tickets: [] };
+        participants.push(user);
+      }
+
+      user.totalCoins += coinsReceived;
+
+      // Calcula quantos bilhetes a pessoa deve ter com base no total acumulado de moedas
+      const expectedTicketsCount = Math.floor(user.totalCoins / targetCoins);
+      const newTicketsNeeded = expectedTicketsCount - user.tickets.length;
+
+      for (let i = 0; i < newTicketsNeeded; i++) {
+        const ticketNum = generateUniqueTicket();
+        if (ticketNum !== null) {
+          user.tickets.push(ticketNum);
+        }
+      }
+
+      saveData();
+      renderParticipantsTable();
+    }
+
+    function renderParticipantsTable() {
+      const tbody = document.getElementById('participantsTable');
+      tbody.innerHTML = '';
+
+      if (participants.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #64748b;">Nenhum participante registrado ainda.</td></tr>';
+        return;
+      }
+
+      // Ordena por maior quantidade de bilhetes/moedas
+      participants.sort((a, b) => b.totalCoins - a.totalCoins);
+
+      participants.forEach(user => {
+        const tr = document.createElement('tr');
+        
+        const ticketsHTML = user.tickets.length > 0 
+          ? user.tickets.map(t => `<span class="tickets-tag">#${t}</span>`).join('') 
+          : '<em style="color: #64748b;">Sem bilhetes</em>';
+
+        tr.innerHTML = `
+          <td><strong>@${user.username}</strong></td>
+          <td>${user.totalCoins} 🪙</td>
+          <td>${ticketsHTML}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function resetRaffle() {
+      if (confirm('Tem certeza que deseja zerar a rifa e limpar todos os participantes e bilhetes?')) {
+        participants = [];
+        issuedTickets = [];
+        localStorage.removeItem('raffle_data');
+        renderParticipantsTable();
+        alert('Rifa resetada com sucesso!');
+      }
+    }
+
+    // Socket Handlers
     socket.on('statusUpdate', (data) => {
       if (data.status === 'connected') {
         updateStatus(`✅ Conectado a @${data.streamer}`, 'connected');
@@ -197,27 +419,20 @@
       }
     });
 
-    // Recebe Presentes do Server
     socket.on('giftReceived', (data) => {
-      console.log('🎁 Presente recebido:', data);
-      
       const giftLog = document.getElementById('giftLog');
       
-      // Limpa mensagem inicial se houver
-      if (giftLog.innerHTML.includes('Nenhum presente')) {
+      if (giftLog.innerHTML.includes('Aguardando presentes')) {
         giftLog.innerHTML = '';
       }
 
       const item = document.createElement('div');
       item.className = 'gift-item';
       item.innerHTML = `🎁 <strong>@${data.username}</strong> enviou <strong>${data.coins}</strong> moeda(s)!`;
-      
       giftLog.prepend(item);
 
-      // Aqui você pode chamar sua função handleGift existente para registrar na rifa/sorteio
-      if (typeof handleGift === 'function') {
-        handleGift(data.username, data.coins);
-      }
+      // Processa o presente na rifa
+      handleGift(data.username, Number(data.coins));
     });
 
     function updateStatus(text, className) {
