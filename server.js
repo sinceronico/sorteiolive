@@ -74,17 +74,37 @@ function connectToTikTok(username) {
     io.emit('statusUpdate', { status: 'error', message: 'Live offline ou não encontrada' });
   });
 
-  // OUVINTE DE PRESENTES (GIFTS)
+  // OUVINTE DE PRESENTES (GIFTS) REVISADO E ROBUSTO
   tiktokLiveConnection.on('gift', data => {
-    // Evita duplicação de presentes contínuos (combos) até finalizarem
+    // 1. Identifica o nome do usuário que enviou o presente
+    const donorUser = data.uniqueId || data.nickname;
+    if (!donorUser) return;
+
+    // 2. Trata presentes em combo (para não ignorar presentes de 1 moeda no final da animação)
+    // Se for um presente contínuo (giftType 1) e ainda estiver na fase de combo, ignoramos para acumular apenas no final
     if (data.giftType === 1 && data.repeatEnd === false) {
-      return;
+      return; 
     }
 
-    const giftCoins = (data.diamondCount || 1) * (data.repeatCount || 1);
-    const donorUser = data.uniqueId;
+    // 3. Cálculo das moedas recebidas
+    // Tenta capturar o valor em diamantes/moedas por unidade
+    const diamondUnit = data.diamondCount || data.diamond_count || data.gift?.diamond_count || 1;
+    
+    // Tenta capturar a quantidade de vezes que o presente foi repetido no combo
+    const count = data.repeatCount || data.repeat_count || 1;
 
-    console.log(`🎁 [GIFT] @${donorUser} enviou ${giftCoins} moedas na live de @${activeStreamer}`);
+    // Total final de moedas do lote
+    const giftCoins = diamondUnit * count;
+
+    console.log(`🎁 [PRESENTE RECONHECIDO] @${donorUser} enviou ${giftCoins} moeda(s) (Item: ${data.giftName || 'Presente'})`);
+
+    // 4. Dispara o presente via Socket para o painel admin
+    io.emit('giftReceived', {
+      username: donorUser,
+      coins: giftCoins,
+      streamer: activeStreamer
+    });
+  });
 
     // Dispara presente para o admin em tempo real
     io.emit('giftReceived', {
