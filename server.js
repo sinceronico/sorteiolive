@@ -5,46 +5,37 @@ const { WebcastPushConnection } = require('tiktok-live-connector');
 const admin = require('firebase-admin');
 
 // ==========================================
-// 1. INICIALIZAÇÃO DO FIREBASE ADMIN
+// 1. INICIALIZAÇÃO SEGURA DO FIREBASE ADMIN
 // ==========================================
-// Configuração utilizando as variáveis de ambiente (Render/Heroku/Local)
-const serviceAccount = {
-  type: process.env.FIREBASE_TYPE || "service_account",
-  project_id: process.env.FIREBASE_PROJECT_ID || "sorteiolive-ec896",
-  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY 
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
-    : undefined,
-  client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  client_id: process.env.FIREBASE_CLIENT_ID,
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-  client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
-};
+// Não utiliza require('./serviceAccountKey.json') para evitar o erro MODULE_NOT_FOUND no Render.
 
-// Verifica se as variáveis de ambiente essenciais do Firebase estão presentes
-if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: process.env.FIREBASE_DATABASE_URL || "https://sorteiolive-ec896-default-rtdb.firebaseio.com"
-  });
-  console.log('🔥 Firebase Admin conectado com sucesso via Variáveis de Ambiente!');
-} else {
-  // Fallback para arquivo local caso esteja rodando na sua máquina de testes
+if (process.env.FIREBASE_PRIVATE_KEY) {
   try {
-    const localServiceAccount = require('./serviceAccountKey.json');
+    const serviceAccount = {
+      type: "service_account",
+      project_id: process.env.FIREBASE_PROJECT_ID || "sorteiolive-ec896",
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
+    };
+
     admin.initializeApp({
-      credential: admin.credential.cert(localServiceAccount),
-      databaseURL: "https://sorteiolive-ec896-default-rtdb.firebaseio.com"
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: process.env.FIREBASE_DATABASE_URL || "https://sorteiolive-ec896-default-rtdb.firebaseio.com"
     });
-    console.log('🔥 Firebase Admin conectado via arquivo local serviceAccountKey.json!');
-  } catch (e) {
-    console.warn('⚠️ Nenhuma credencial do Firebase encontrada. O servidor usará memória temporária.');
+    console.log('🔥 Firebase Admin conectado com sucesso via Variáveis de Ambiente!');
+  } catch (err) {
+    console.error('❌ Erro ao inicializar Firebase Admin:', err.message);
   }
+} else {
+  console.warn('⚠️ FIREBASE_PRIVATE_KEY não configurada no Render. O servidor executará em memória temporária.');
 }
 
-// Referência do Realtime Database
 const db = admin.apps.length ? admin.database() : null;
 const stateRef = db ? db.ref('raffle_state') : null;
 
@@ -58,7 +49,7 @@ let appState = {
   availableTicketsPool: []
 };
 
-// Algoritmo Fisher-Yates para embaralhamento perfeito de bilhetes
+// Embaralhamento Fisher-Yates
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -67,7 +58,7 @@ function shuffleArray(array) {
   return array;
 }
 
-// Gera o pool de 100.000 bilhetes aleatórios
+// Gera o pool de 100.000 bilhetes numéricos aleatórios
 function generateRandomTicketsPool() {
   const numbers = [];
   for (let i = 1000; i < 101000; i++) {
@@ -76,7 +67,7 @@ function generateRandomTicketsPool() {
   return shuffleArray(numbers);
 }
 
-// Carrega os dados persistidos no Firebase ao iniciar o servidor
+// Carrega o estado do banco do Firebase
 async function loadStateFromFirebase() {
   if (!stateRef) {
     appState.availableTicketsPool = generateRandomTicketsPool();
@@ -93,11 +84,11 @@ async function loadStateFromFirebase() {
         participants: data.participants || {},
         availableTicketsPool: data.availableTicketsPool || generateRandomTicketsPool()
       };
-      console.log('📦 Estado do sorteio recuperado do Firebase.');
+      console.log('📦 Estado recuperado do Firebase com sucesso.');
     } else {
       appState.availableTicketsPool = generateRandomTicketsPool();
       await saveStateToFirebase();
-      console.log('✨ Novo estado criado no Firebase.');
+      console.log('✨ Novo estado inicializado no Firebase.');
     }
   } catch (err) {
     console.error('❌ Erro ao ler dados do Firebase:', err.message);
@@ -115,11 +106,10 @@ async function saveStateToFirebase() {
   }
 }
 
-// Executa a carga inicial
 loadStateFromFirebase();
 
 // ==========================================
-// 3. EXPRESS E SOCKET.IO
+// 3. CONFIGURAÇÃO EXPRESS E SOCKET.IO
 // ==========================================
 const app = express();
 app.use(express.json());
@@ -137,7 +127,7 @@ const io = new Server(server, {
 let tiktokLiveConnection = null;
 let activeStreamer = "";
 
-// Função centralizada para processar presentes e gerar bilhetes
+// Lógica para atribuição de bilhetes por moedas
 async function processContribution(username, coins) {
   const coinsNum = Number(coins);
   if (!appState.participants[username]) {
@@ -147,13 +137,11 @@ async function processContribution(username, coins) {
   appState.participants[username].coins += coinsNum;
   const targetTicketsCount = Math.floor(appState.participants[username].coins / appState.coinsPerTicket);
 
-  // Atribui números aleatórios do pool
   while (appState.participants[username].tickets.length < targetTicketsCount && appState.availableTicketsPool.length > 0) {
     const randomTicketNumber = appState.availableTicketsPool.pop();
     appState.participants[username].tickets.push(randomTicketNumber);
   }
 
-  // Persiste e sincroniza com todos os clientes
   await saveStateToFirebase();
   io.emit('stateUpdated', appState);
 }
@@ -169,8 +157,6 @@ const handleTikfinityWebhook = async (req, res) => {
     console.log(`🎁 [WEBHOOK TIKFINITY] @${donorUser} enviou ${coins} moeda(s)!`);
     await processContribution(donorUser, coins);
     io.emit('giftReceived', { username: donorUser, coins: Number(coins), streamer: activeStreamer });
-  } else {
-    console.log('⚠️ Webhook recebido sem usuário:', req.query, req.body);
   }
 
   res.status(200).send({ success: true });
@@ -180,29 +166,29 @@ app.post('/webhook/tikfinity', handleTikfinityWebhook);
 app.get('/webhook/tikfinity', handleTikfinityWebhook);
 
 // ==========================================
-// 5. EVENTOS DO SOCKET.IO
+// 5. COMUNICAÇÃO SOCKET.IO (PAINEL E PÚBLICO)
 // ==========================================
 io.on('connection', (socket) => {
-  console.log('📱 Cliente conectado via WebSocket.');
+  console.log('📱 Cliente conectado.');
 
-  // Envia o estado atual assim que o cliente conecta
+  // Envia os dados atuais para novas abas/clientes
   socket.emit('stateUpdated', appState);
 
-  // Atualização do Prêmio
+  // Atualizar Prêmio
   socket.on('updatePrize', async (prizeText) => {
     appState.prize = prizeText;
     await saveStateToFirebase();
     io.emit('stateUpdated', appState);
   });
 
-  // Atualização do Valor em Moedas por Bilhete
+  // Atualizar Valor por Bilhete
   socket.on('updateCoinsPerTicket', async (value) => {
     appState.coinsPerTicket = Number(value) || 1;
     await saveStateToFirebase();
     io.emit('stateUpdated', appState);
   });
 
-  // Comando para Zerar Sorteio
+  // Zerar Sorteio
   socket.on('clearData', async () => {
     appState.participants = {};
     appState.availableTicketsPool = generateRandomTicketsPool();
@@ -210,7 +196,7 @@ io.on('connection', (socket) => {
     io.emit('stateUpdated', appState);
   });
 
-  // Conexão TikTok Live Connector
+  // TikTok Live Connector Direct
   socket.on('setLiveUser', ({ username, sessionId }) => {
     activeStreamer = username;
 
@@ -225,15 +211,15 @@ io.on('connection', (socket) => {
       tiktokLiveConnection = new WebcastPushConnection(username, options);
 
       tiktokLiveConnection.connect().then(state => {
-        console.log(`✅ Conectado à live de @${username} (Room ID: ${state.roomId})`);
+        console.log(`✅ Conectado diretamente à live de @${username}`);
         socket.emit('statusUpdate', { status: 'connected', streamer: username });
       }).catch(err => {
-        console.error(`❌ Erro ao conectar na live de @${username}:`, err);
+        console.error(`❌ Erro na conexão direta com @${username}:`, err);
         socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar via servidor.' });
       });
 
       tiktokLiveConnection.on('gift', async data => {
-        if (data.giftType === 1 && data.repeatEnd === false) return; // Ignora combos incompletos
+        if (data.giftType === 1 && data.repeatEnd === false) return;
 
         const totalCoins = (data.diamondCount || 1) * (data.repeatCount || 1);
         await processContribution(data.uniqueId, totalCoins);
@@ -249,14 +235,14 @@ io.on('connection', (socket) => {
         socket.emit('statusUpdate', { status: 'ended', streamer: username });
       });
     } catch (err) {
-      console.error(`❌ Erro na conexão direta:`, err);
-      socket.emit('statusUpdate', { status: 'error', message: 'Bloqueio na conexão direta. Use o TikFinity.' });
+      console.error(`❌ Falha na conexão direta:`, err);
+      socket.emit('statusUpdate', { status: 'error', message: 'Erro na conexão direta. Utilize o TikFinity.' });
     }
   });
 });
 
 // ==========================================
-// 6. INICIALIZAÇÃO DO SERVIDOR
+// 6. INICIALIZAÇÃO DA PORTA
 // ==========================================
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
