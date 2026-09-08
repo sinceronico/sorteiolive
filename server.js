@@ -1,3 +1,24 @@
+// ROTA DE WEBHOOK DO TIKFINITY (Aceita formato automático ou customizado)
+app.post('/webhook/tikfinity', (req, res) => {
+  const data = req.body;
+
+  // Pega o nome do doador e a quantidade de moedas enviadas pelo TikFinity
+  const donorUser = data.username || data.uniqueId || data.nickname || (data.user && data.user.uniqueId);
+  const coins = data.coins || data.diamondCount || data.diamonds || data.repeatCount || 1;
+
+  if (donorUser) {
+    console.log(`🎁 [WEBHOOK TIKFINITY] @${donorUser} enviou ${coins} moeda(s)!`);
+
+    // Dispara para o seu admin.html
+    io.emit('giftReceived', {
+      username: donorUser,
+      coins: Number(coins),
+      streamer: activeStreamer
+    });
+  }
+
+  res.status(200).send({ success: true });
+});
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
