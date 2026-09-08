@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Premio - TikTok Live</title>
+  <title>Painel da Rifa - TikTok Live</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Socket.IO -->
@@ -139,7 +139,7 @@
 
         <div class="flex gap-4">
           <button onclick="startDraw()" id="btnDraw" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-extrabold py-3 px-6 rounded-lg text-lg shadow-lg transition transform active:scale-95">
-            🎲 REALIZAR SORTEIO
+            🎲 REALIZAR SORTEIO (10s)
           </button>
         </div>
       </div>
@@ -231,10 +231,30 @@
     const socket = io();
     
     // Configurações
-    const ADMIN_PASSWORD = "5879"; 
+    const ADMIN_PASSWORD = "1234"; 
     let participants = {}; 
-    let nextTicketNumber = 1000; 
+    let availableTicketsPool = []; // Pool de números embaralhados para garantir distribuição aleatória
     let isSpinning = false;
+
+    // Função de Embaralhamento Perfeito (Algoritmo Fisher-Yates)
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // Inicializa o pool com 100.000 números aleatórios
+    function generateRandomTicketsPool() {
+      const numbers = [];
+      for (let i = 1000; i < 101000; i++) {
+        numbers.push(i);
+      }
+      availableTicketsPool = shuffleArray(numbers);
+    }
+
+    generateRandomTicketsPool();
 
     // Detecta modo de visualização
     const urlParams = new URLSearchParams(window.location.search);
@@ -273,7 +293,6 @@
       }
     });
 
-    // Atualiza o Prêmio em tempo real no servidor/clientes
     function updatePrize() {
       const prizeText = document.getElementById('prizeInput').value;
       socket.emit('updatePrize', prizeText);
@@ -286,7 +305,6 @@
       }
     });
 
-    // Copiar Link Público
     function copyPublicLink() {
       const input = document.getElementById('publicUrlInput');
       input.select();
@@ -304,13 +322,11 @@
       }, 2000);
     }
 
-    // Recebimento de Presentes via Socket.IO
     socket.on('giftReceived', (data) => {
       addGiftToFeed(data.username, data.coins);
       registerContribution(data.username, data.coins);
     });
 
-    // Sincronização da ação de Zerar Rifa em tempo real
     socket.on('clearDataReceived', () => {
       resetLocalData();
     });
@@ -330,6 +346,7 @@
       feed.prepend(item);
     }
 
+    // Atribuição de Números de Forma Aleatória
     function registerContribution(username, coins) {
       const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket')?.value) || 1;
       
@@ -340,9 +357,10 @@
       participants[username].coins += Number(coins);
       const targetTicketsCount = Math.floor(participants[username].coins / coinsPerTicket);
       
-      while (participants[username].tickets.length < targetTicketsCount) {
-        participants[username].tickets.push(nextTicketNumber);
-        nextTicketNumber++;
+      // Retira números aleatórios do pool disponível para o usuário
+      while (participants[username].tickets.length < targetTicketsCount && availableTicketsPool.length > 0) {
+        const randomTicketNumber = availableTicketsPool.pop();
+        participants[username].tickets.push(randomTicketNumber);
       }
 
       updateTable();
@@ -365,8 +383,10 @@
         const data = participants[username];
         totalTickets += data.tickets.length;
 
-        const numbersHtml = data.tickets.length > 0 
-          ? data.tickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
+        // Ordena os números na exibição da tabela para facilitar a busca do usuário
+        const sortedTickets = [...data.tickets].sort((a, b) => a - b);
+        const numbersHtml = sortedTickets.length > 0 
+          ? sortedTickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
           : '<span class="text-slate-500 text-xs italic">Sem números</span>';
 
         const tr = document.createElement('tr');
@@ -394,7 +414,7 @@
       });
     }
 
-    // LÓGICA DO SORTEIO DA ROLETA
+    // LÓGICA DO SORTEIO DA ROLETA (GIRO AJUSTADO PARA 10 SEGUNDOS)
     function startDraw() {
       if (isSpinning || isPublicView) return;
 
@@ -413,9 +433,10 @@
         return;
       }
 
-      let poolForDraw = allTickets;
-      if (allTickets.length > maxLimit) {
-        poolForDraw = [...allTickets].sort(() => 0.5 - Math.random()).slice(0, maxLimit);
+      // Re-embaralha os bilhetes aleatoriamente para o sorteio
+      let poolForDraw = shuffleArray([...allTickets]);
+      if (poolForDraw.length > maxLimit) {
+        poolForDraw = poolForDraw.slice(0, maxLimit);
       }
 
       isSpinning = true;
@@ -429,8 +450,8 @@
       track.style.transform = 'translateX(0px)';
       track.innerHTML = '';
 
-      const totalCards = 60;
-      const targetCardIndex = 50;
+      const totalCards = 110; // Aumentado o número de cards para cobrir a rotação de 10 segundos
+      const targetCardIndex = 100;
 
       for (let i = 0; i < totalCards; i++) {
         const card = document.createElement('div');
@@ -445,16 +466,15 @@
         track.appendChild(card);
       }
 
-      const baseDuration = 4;
-      const extraDuration = Math.min(poolForDraw.length * 0.1, 4);
-      const totalDuration = baseDuration + extraDuration;
+      // Tempo de Giro Fixo em 10 Segundos
+      const totalDuration = 10;
 
       const cardWidth = 156;
       const containerWidth = document.querySelector('.roulette-container').offsetWidth;
       const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
 
       setTimeout(() => {
-        track.style.transition = `transform ${totalDuration}s cubic-bezier(0.15, 0.9, 0.2, 1)`;
+        track.style.transition = `transform ${totalDuration}s cubic-bezier(0.1, 0.9, 0.1, 1)`;
         track.style.transform = `translateX(-${stopPosition}px)`;
       }, 50);
 
@@ -481,7 +501,6 @@
       document.getElementById('winnerModal').classList.add('hidden');
     }
 
-    // Executa a limpeza local e emite para o servidor
     function clearData() {
       if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte para TODOS os participantes?')) {
         socket.emit('clearData');
@@ -489,10 +508,9 @@
       }
     }
 
-    // Reseta a interface local
     function resetLocalData() {
       participants = {};
-      nextTicketNumber = 1000;
+      generateRandomTicketsPool(); // Reinicia o pool aleatório
       updateTable();
       if (!isPublicView) {
         document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
