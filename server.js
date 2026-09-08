@@ -1,7 +1,8 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+// Importa o pacote do TikTok Live Connector
 const TikTokLiveConnector = require('tiktok-live-connector');
+
+// Resolve o construtor correto independente da versão
+const WebcastConnection = TikTokLiveConnector.WebcastPushConnection || TikTokLiveConnector.default || TikTokLiveConnector;
 
 // Correção da importação da classe WebcastPushConnection para compatibilidade
 const WebcastPushConnection = TikTokLiveConnector.WebcastPushConnection || TikTokLiveConnector;
