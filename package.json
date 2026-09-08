@@ -1,4 +1,3 @@
-cat << 'EOF' > package.json
 {
   "name": "sorteio-live",
   "version": "1.0.0",
@@ -14,4 +13,3 @@ cat << 'EOF' > package.json
     "tiktok-live-connector": "^2.4.4"
   }
 }
-EOF
