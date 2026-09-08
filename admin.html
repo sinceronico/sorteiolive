@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel da Rifa - TikTok Live</title>
+  <title>Painel de Premio - TikTok Live</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Socket.IO -->
@@ -78,7 +78,7 @@
   </div>
 
   <!-- Cabeçalho -->
-  <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700 pb-4">
+  <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-700 pb-4">
     <div>
       <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
       <p class="text-xs text-slate-400 mt-1">Acompanhamento e sorteios de bilhetes em tempo real</p>
@@ -88,6 +88,20 @@
       <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
     </div>
   </header>
+
+  <!-- CARD DO PRÊMIO DO SORTEIO -->
+  <div class="max-w-6xl mx-auto mb-6 bg-gradient-to-r from-amber-500/20 via-slate-800 to-amber-500/20 border border-amber-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <div class="p-3 bg-amber-500/20 text-amber-400 rounded-lg text-3xl">🏆</div>
+      <div>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-amber-400">Prêmio do Sorteio</h3>
+        <div id="prizeDisplay" class="text-2xl font-black text-amber-300 hidden">Nenhum prêmio definido</div>
+      </div>
+    </div>
+    <div id="prizeInputContainer" class="flex items-center gap-2 w-full sm:w-auto">
+      <input type="text" id="prizeInput" oninput="updatePrize()" placeholder="Ex: PIX de R$ 100 / Camisa Oficial" class="bg-slate-900 border border-amber-500/50 rounded-lg px-4 py-2 text-base text-amber-200 placeholder-slate-500 w-full sm:w-96 font-bold focus:outline-none focus:border-amber-400">
+    </div>
+  </div>
 
   <!-- CARD DO LINK PÚBLICO DOS PARTICIPANTES -->
   <div id="publicLinkCard" class="max-w-6xl mx-auto mb-6 bg-slate-800 border border-blue-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
@@ -217,7 +231,7 @@
     const socket = io();
     
     // Configurações
-    const ADMIN_PASSWORD = "5879"; // Você pode alterar sua senha aqui
+    const ADMIN_PASSWORD = "5879"; 
     let participants = {}; 
     let nextTicketNumber = 1000; 
     let isSpinning = false;
@@ -244,18 +258,31 @@
       document.getElementById('publicUrlInput').value = publicUrl;
 
       if (isPublicView) {
-        // Esconde o modal de login para os espectadores no link público
         document.getElementById('loginModal').classList.add('hidden');
         document.getElementById('adminSection').style.display = 'none';
         document.getElementById('adminHeaderControls').style.display = 'none';
         document.getElementById('publicLinkCard').style.display = 'none';
+        document.getElementById('prizeInputContainer').style.display = 'none';
+        document.getElementById('prizeDisplay').classList.remove('hidden');
         
         const tableSection = document.getElementById('tableSection');
         tableSection.classList.remove('md:col-span-1');
         tableSection.classList.add('md:col-span-3');
       } else if (sessionStorage.getItem('admin_authenticated') === 'true') {
-        // Se já autenticou na sessão, pula o modal de login
         document.getElementById('loginModal').classList.add('hidden');
+      }
+    });
+
+    // Atualiza o Prêmio em tempo real no servidor/clientes
+    function updatePrize() {
+      const prizeText = document.getElementById('prizeInput').value;
+      socket.emit('updatePrize', prizeText);
+    }
+
+    socket.on('prizeUpdated', (prizeText) => {
+      document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
+      if (!isPublicView) {
+        document.getElementById('prizeInput').value = prizeText;
       }
     });
 
@@ -281,6 +308,11 @@
     socket.on('giftReceived', (data) => {
       addGiftToFeed(data.username, data.coins);
       registerContribution(data.username, data.coins);
+    });
+
+    // Sincronização da ação de Zerar Rifa em tempo real
+    socket.on('clearDataReceived', () => {
+      resetLocalData();
     });
 
     function addGiftToFeed(username, coins) {
@@ -362,7 +394,7 @@
       });
     }
 
-    // LÓGICA DO SORTEIO COM RESPEITO AO LIMITE MÁXIMO DE BILHETES (MÁX 100.000)
+    // LÓGICA DO SORTEIO DA ROLETA
     function startDraw() {
       if (isSpinning || isPublicView) return;
 
@@ -381,10 +413,8 @@
         return;
       }
 
-      // Aplica o limite máximo configurado caso a rifa possua mais bilhetes que o limite
       let poolForDraw = allTickets;
       if (allTickets.length > maxLimit) {
-        // Embaralha e corta até o limite máximo
         poolForDraw = [...allTickets].sort(() => 0.5 - Math.random()).slice(0, maxLimit);
       }
 
@@ -451,11 +481,20 @@
       document.getElementById('winnerModal').classList.add('hidden');
     }
 
+    // Executa a limpeza local e emite para o servidor
     function clearData() {
-      if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte?')) {
-        participants = {};
-        nextTicketNumber = 1000;
-        updateTable();
+      if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte para TODOS os participantes?')) {
+        socket.emit('clearData');
+        resetLocalData();
+      }
+    }
+
+    // Reseta a interface local
+    function resetLocalData() {
+      participants = {};
+      nextTicketNumber = 1000;
+      updateTable();
+      if (!isPublicView) {
         document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
         document.getElementById('rouletteTrack').innerHTML = '<div class="roulette-card">Aguardando...</div>';
       }
