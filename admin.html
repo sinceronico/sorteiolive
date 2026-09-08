@@ -61,6 +61,22 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen p-6 font-sans">
 
+  <!-- MODAL DE LOGIN COM SENHA -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="text-4xl mb-3">🔒</div>
+      <h2 class="text-2xl font-black text-blue-400 mb-1">Acesso Restrito</h2>
+      <p class="text-xs text-slate-400 mb-6">Digite a senha administrativa para acessar o painel do sorteio:</p>
+      
+      <form onsubmit="checkPassword(event)">
+        <input type="password" id="passwordInput" placeholder="Sua senha..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-center text-lg font-bold text-white mb-4 focus:outline-none focus:border-blue-500">
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-3 rounded-lg transition">
+          ENTRAR NO PAINEL
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Cabeçalho -->
   <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700 pb-4">
     <div>
@@ -79,7 +95,7 @@
       <div class="p-3 bg-blue-600/20 text-blue-400 rounded-lg text-2xl">🔗</div>
       <div>
         <h3 class="font-bold text-sm text-blue-300">Link Público para os Espectadores</h3>
-        <p class="text-xs text-slate-400">Envie este link na live para os participantes consultarem seus Números da Sorte em tempo real:</p>
+        <p class="text-xs text-slate-400">Envie este link na live para os participantes consultarem seus Números da Sorte sem pedir senha:</p>
       </div>
     </div>
     <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -114,13 +130,27 @@
         </div>
       </div>
 
-      <!-- CARD DE REGRAS DE CONVERSÃO -->
+      <!-- CARD DE REGRAS DE CONVERSÃO E LIMITE DE BILHETES -->
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <h2 class="text-lg font-bold mb-3 text-blue-400">⚙️ Regra de Bilhetes</h2>
-        <div class="flex items-center gap-4">
-          <label class="text-sm font-medium">1 Núm. da Sorte a cada:</label>
-          <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white w-24 text-center font-bold">
-          <span class="text-sm text-slate-400">Moeda(s) enviada(s)</span>
+        <h2 class="text-lg font-bold mb-4 text-blue-400">⚙️ Regras e Configuração do Sorteio</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Regra 1: Custo em Moedas -->
+          <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
+            <label class="text-xs text-slate-400 font-medium mb-1">1 Núm. da Sorte a cada:</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-24 text-center font-bold text-sm">
+              <span class="text-xs text-slate-300">Moeda(s)</span>
+            </div>
+          </div>
+
+          <!-- Regra 2: Limite Máximo de Bilhetes -->
+          <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
+            <label class="text-xs text-slate-400 font-medium mb-1">Máximo de Bilhetes no Sorteio:</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="maxTicketsLimit" value="100000" min="1" max="100000" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-28 text-center font-bold text-sm">
+              <span class="text-xs text-slate-400">(Máx. 100.000)</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -186,34 +216,50 @@
   <script>
     const socket = io();
     
-    // Armazena dados dos participantes
+    // Configurações
+    const ADMIN_PASSWORD = "1234"; // Você pode alterar sua senha aqui
     let participants = {}; 
     let nextTicketNumber = 1000; 
     let isSpinning = false;
 
-    // Detecta se a página foi aberta no modo público pelos espectadores (?view=public)
+    // Detecta modo de visualização
     const urlParams = new URLSearchParams(window.location.search);
     const isPublicView = urlParams.get('view') === 'public';
+
+    // Verificação da Senha
+    function checkPassword(e) {
+      if (e) e.preventDefault();
+      const inputPass = document.getElementById('passwordInput').value;
+      if (inputPass === ADMIN_PASSWORD) {
+        document.getElementById('loginModal').classList.add('hidden');
+        sessionStorage.setItem('admin_authenticated', 'true');
+      } else {
+        alert('Senha incorreta! Tente novamente.');
+      }
+    }
 
     // Configuração inicial da interface
     window.addEventListener('DOMContentLoaded', () => {
       const publicUrl = window.location.origin + window.location.pathname + '?view=public';
       document.getElementById('publicUrlInput').value = publicUrl;
 
-      // Se for visualização pública dos participantes, oculta painéis administrativos
       if (isPublicView) {
+        // Esconde o modal de login para os espectadores no link público
+        document.getElementById('loginModal').classList.add('hidden');
         document.getElementById('adminSection').style.display = 'none';
         document.getElementById('adminHeaderControls').style.display = 'none';
         document.getElementById('publicLinkCard').style.display = 'none';
         
-        // Expande a tabela para ocupar a tela toda
         const tableSection = document.getElementById('tableSection');
         tableSection.classList.remove('md:col-span-1');
         tableSection.classList.add('md:col-span-3');
+      } else if (sessionStorage.getItem('admin_authenticated') === 'true') {
+        // Se já autenticou na sessão, pula o modal de login
+        document.getElementById('loginModal').classList.add('hidden');
       }
     });
 
-    // Função para copiar o link público com 1 clique
+    // Copiar Link Público
     function copyPublicLink() {
       const input = document.getElementById('publicUrlInput');
       input.select();
@@ -231,18 +277,12 @@
       }, 2000);
     }
 
-    // Conexão Socket.IO
-    socket.on('connect', () => {
-      console.log('Conectado ao servidor Socket.IO');
-    });
-
-    // Recebimento de Presentes
+    // Recebimento de Presentes via Socket.IO
     socket.on('giftReceived', (data) => {
       addGiftToFeed(data.username, data.coins);
       registerContribution(data.username, data.coins);
     });
 
-    // Adiciona ao Feed
     function addGiftToFeed(username, coins) {
       if (isPublicView) return;
       const feed = document.getElementById('giftFeed');
@@ -258,7 +298,6 @@
       feed.prepend(item);
     }
 
-    // Registra Moedas e Atribui os Números da Sorte
     function registerContribution(username, coins) {
       const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket')?.value) || 1;
       
@@ -267,7 +306,6 @@
       }
 
       participants[username].coins += Number(coins);
-
       const targetTicketsCount = Math.floor(participants[username].coins / coinsPerTicket);
       
       while (participants[username].tickets.length < targetTicketsCount) {
@@ -278,7 +316,6 @@
       updateTable();
     }
 
-    // Atualiza a Tabela de Participantes
     function updateTable() {
       const tbody = document.getElementById('participantsTable');
       tbody.innerHTML = '';
@@ -312,27 +349,25 @@
       });
 
       document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
-      filterParticipants(); // Mantém o filtro de busca aplicado, se houver
+      filterParticipants();
     }
 
-    // Busca rápida por nome de usuário na tabela
     function filterParticipants() {
       const query = document.getElementById('searchInput').value.toLowerCase().trim();
       const rows = document.querySelectorAll('.participant-row');
 
       rows.forEach(row => {
         const username = row.getAttribute('data-username');
-        if (username.includes(query)) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
+        row.style.display = username.includes(query) ? '' : 'none';
       });
     }
 
-    // LÓGICA DO SORTEIO DA ROLETA
+    // LÓGICA DO SORTEIO COM RESPEITO AO LIMITE MÁXIMO DE BILHETES (MÁX 100.000)
     function startDraw() {
       if (isSpinning || isPublicView) return;
+
+      let maxLimit = parseInt(document.getElementById('maxTicketsLimit').value) || 100000;
+      if (maxLimit > 100000) maxLimit = 100000;
 
       let allTickets = [];
       Object.keys(participants).forEach(username => {
@@ -346,11 +381,18 @@
         return;
       }
 
+      // Aplica o limite máximo configurado caso a rifa possua mais bilhetes que o limite
+      let poolForDraw = allTickets;
+      if (allTickets.length > maxLimit) {
+        // Embaralha e corta até o limite máximo
+        poolForDraw = [...allTickets].sort(() => 0.5 - Math.random()).slice(0, maxLimit);
+      }
+
       isSpinning = true;
       document.getElementById('btnDraw').disabled = true;
 
-      const winnerIndex = Math.floor(Math.random() * allTickets.length);
-      const winningTicket = allTickets[winnerIndex];
+      const winnerIndex = Math.floor(Math.random() * poolForDraw.length);
+      const winningTicket = poolForDraw[winnerIndex];
 
       const track = document.getElementById('rouletteTrack');
       track.style.transition = 'none';
@@ -364,7 +406,7 @@
         const card = document.createElement('div');
         card.className = 'roulette-card';
         
-        let cardData = (i === targetCardIndex) ? winningTicket : allTickets[Math.floor(Math.random() * allTickets.length)];
+        let cardData = (i === targetCardIndex) ? winningTicket : poolForDraw[Math.floor(Math.random() * poolForDraw.length)];
         
         card.innerHTML = `
           <span class="text-xl font-black text-yellow-400">#${cardData.number}</span>
@@ -374,7 +416,7 @@
       }
 
       const baseDuration = 4;
-      const extraDuration = Math.min(allTickets.length * 0.1, 4);
+      const extraDuration = Math.min(poolForDraw.length * 0.1, 4);
       const totalDuration = baseDuration + extraDuration;
 
       const cardWidth = 156;
@@ -393,7 +435,6 @@
       }, (totalDuration * 1000) + 300);
     }
 
-    // Exibe o Modal do Ganhador
     function showWinner(ticket) {
       document.getElementById('winnerNumber').innerText = `#${ticket.number}`;
       document.getElementById('winnerName').innerText = `@${ticket.username}`;
@@ -410,7 +451,6 @@
       document.getElementById('winnerModal').classList.add('hidden');
     }
 
-    // Limpa os dados da Rifa
     function clearData() {
       if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte?')) {
         participants = {};
