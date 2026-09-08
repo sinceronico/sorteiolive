@@ -120,10 +120,10 @@
     </div>
   </div>
 
-  <main class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+  <main class="max-w-6xl mx-auto grid grid-cols-1 gap-6">
 
-    <!-- COLUNA DA ESQUERDA: CONFIGURAÇÃO & SORTEIO (OCULTA NO MODO PÚBLICO) -->
-    <section id="adminSection" class="md:col-span-2 flex flex-col gap-6">
+    <!-- SEÇÃO SUPERIOR: CONFIGURAÇÃO, ROLETA & FEED (OCULTA NO MODO PÚBLICO) -->
+    <section id="adminSection" class="w-full flex flex-col gap-6">
 
       <!-- CARD DE SORTEIO / ROLETA HORIZONTAL -->
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
@@ -144,42 +144,45 @@
         </div>
       </div>
 
-      <!-- CARD DE REGRAS DE CONVERSÃO E LIMITE DE BILHETES -->
-      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <h2 class="text-lg font-bold mb-4 text-blue-400">⚙️ Regras e Configuração do Sorteio</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Regra 1: Custo em Moedas -->
-          <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
-            <label class="text-xs text-slate-400 font-medium mb-1">1 Núm. da Sorte a cada:</label>
-            <div class="flex items-center gap-2">
-              <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-24 text-center font-bold text-sm">
-              <span class="text-xs text-slate-300">Moeda(s)</span>
+      <!-- PAINEL DUPLO: CONFIGURAÇÕES E FEED DE PRESENTES -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- CARD DE REGRAS DE CONVERSÃO E LIMITE DE BILHETES -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+          <h2 class="text-lg font-bold mb-4 text-blue-400">⚙️ Regras e Configuração do Sorteio</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Regra 1: Custo em Moedas -->
+            <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
+              <label class="text-xs text-slate-400 font-medium mb-1">1 Núm. da Sorte a cada:</label>
+              <div class="flex items-center gap-2">
+                <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-24 text-center font-bold text-sm">
+                <span class="text-xs text-slate-300">Moeda(s)</span>
+              </div>
             </div>
-          </div>
 
-          <!-- Regra 2: Limite Máximo de Bilhetes -->
-          <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
-            <label class="text-xs text-slate-400 font-medium mb-1">Máximo de Bilhetes no Sorteio:</label>
-            <div class="flex items-center gap-2">
-              <input type="number" id="maxTicketsLimit" value="100000" min="1" max="100000" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-28 text-center font-bold text-sm">
-              <span class="text-xs text-slate-400">(Máx. 100.000)</span>
+            <!-- Regra 2: Limite Máximo de Bilhetes -->
+            <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
+              <label class="text-xs text-slate-400 font-medium mb-1">Máximo de Bilhetes no Sorteio:</label>
+              <div class="flex items-center gap-2">
+                <input type="number" id="maxTicketsLimit" value="100000" min="1" max="100000" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-28 text-center font-bold text-sm">
+                <span class="text-xs text-slate-400">(Máx. 100.000)</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- FEED DE PRESENTES -->
-      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <h2 class="text-lg font-bold mb-3 text-emerald-400">🎁 Últimos Presentes Recebidos</h2>
-        <div id="giftFeed" class="space-y-2 max-h-48 overflow-y-auto pr-2 text-sm">
-          <p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>
+        <!-- FEED DE PRESENTES -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+          <h2 class="text-lg font-bold mb-3 text-emerald-400">🎁 Últimos Presentes Recebidos</h2>
+          <div id="giftFeed" class="space-y-2 max-h-48 overflow-y-auto pr-2 text-sm">
+            <p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>
+          </div>
         </div>
       </div>
 
     </section>
 
-    <!-- COLUNA DA DIREITA: TABELA DE PARTICIPANTES E SEUS NÚMEROS -->
-    <section id="tableSection" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col md:col-span-1">
+    <!-- SEÇÃO INFERIOR: TABELA DE PARTICIPANTES (LARGURA TOTAL NA HORIZONTAL) -->
+    <section id="tableSection" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col w-full">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
         <span id="totalTicketsCount" class="text-xs bg-blue-900 text-blue-200 px-2.5 py-1 rounded-full font-bold">Total Bilhetes: 0</span>
@@ -190,13 +193,13 @@
         <input type="text" id="searchInput" onkeyup="filterParticipants()" placeholder="🔍 Buscar seu @usuario..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
       </div>
 
-      <div class="flex-1 overflow-y-auto max-h-[550px]">
+      <div class="flex-1 overflow-x-auto overflow-y-auto max-h-[550px]">
         <table class="w-full text-left text-sm">
           <thead class="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0">
             <tr>
-              <th class="p-3">Usuário</th>
-              <th class="p-3 text-center">Moedas</th>
-              <th class="p-3">Números da Sorte</th>
+              <th class="p-3 w-1/4">Usuário</th>
+              <th class="p-3 text-center w-1/6">Moedas</th>
+              <th class="p-3 w-7/12">Números da Sorte</th>
             </tr>
           </thead>
           <tbody id="participantsTable" class="divide-y divide-slate-700">
@@ -284,10 +287,6 @@
         document.getElementById('publicLinkCard').style.display = 'none';
         document.getElementById('prizeInputContainer').style.display = 'none';
         document.getElementById('prizeDisplay').classList.remove('hidden');
-        
-        const tableSection = document.getElementById('tableSection');
-        tableSection.classList.remove('md:col-span-1');
-        tableSection.classList.add('md:col-span-3');
       } else if (sessionStorage.getItem('admin_authenticated') === 'true') {
         document.getElementById('loginModal').classList.add('hidden');
       }
