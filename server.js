@@ -6,9 +6,10 @@ const { WebcastPushConnection } = require('tiktok-live-connector');
 // 1. Inicializa o App Express
 const app = express();
 
-// 2. Configura os Middlewares (DEVE VIR ANTES DAS ROTAS)
+// 2. Configura os Middlewares (Interpreta JSON, formulários e arquivos estáticos)
 app.use(express.json());
-app.use(express.static(__dirname)); // Serve arquivos estáticos como o admin.html
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(__dirname)); 
 
 // 3. Cria o Servidor HTTP e Socket.IO
 const server = http.createServer(app);
@@ -24,16 +25,12 @@ let tiktokLiveConnection = null;
 let activeStreamer = "";
 
 // ==========================================
-// ROTA DE WEBHOOK DO TIKFINITY
+// ROTA DE WEBHOOK DO TIKFINITY (GET e POST)
 // ==========================================
-app.post('/webhook/tikfinity', (req, res) => {
-  const data = req.body;
-
-  // Captura o nome do doador tratando diferentes formatos do TikFinity
-  const donorUser = data.username || data.uniqueId || data.nickname || (data.user && data.user.uniqueId);
-  
-  // Captura o número de moedas/diamantes
-  const coins = data.coins || data.diamondCount || data.diamonds || data.repeatCount || 1;
+const handleTikfinityWebhook = (req, res) => {
+  // Captura dados tanto de parâmetros da URL (?username=...&coins=...) quanto do corpo
+  const donorUser = req.query.username || req.body.username || req.body.uniqueId || req.body.nickname;
+  const coins = req.query.coins || req.body.coins || req.body.diamondCount || req.body.repeatCount || 1;
 
   if (donorUser) {
     console.log(`🎁 [WEBHOOK TIKFINITY] @${donorUser} enviou ${coins} moeda(s)!`);
@@ -42,14 +39,18 @@ app.post('/webhook/tikfinity', (req, res) => {
     io.emit('giftReceived', {
       username: donorUser,
       coins: Number(coins),
-      streamer: data.streamer || activeStreamer
+      streamer: activeStreamer
     });
   } else {
-    console.log('⚠️ Webhook recebido, mas nenhum usuário identificado:', data);
+    console.log('⚠️ Webhook recebido sem usuário. Query:', req.query, 'Body:', req.body);
   }
 
   res.status(200).send({ success: true });
-});
+};
+
+// Aceita requisições HTTP GET e POST do TikFinity
+app.post('/webhook/tikfinity', handleTikfinityWebhook);
+app.get('/webhook/tikfinity', handleTikfinityWebhook);
 
 // ==========================================
 // CONEXÃO COM SOCKET.IO (PAINEL ADMIN)
