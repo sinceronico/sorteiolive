@@ -1,3 +1,22 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+// 1. Inicializa o Express (Cria a variável 'app')
+const app = express();
+
+// 2. Configura os middlewares (agora o 'app' já existe!)
+app.use(express.json());
+app.use(express.static(__dirname)); // Serve os arquivos estáticos (como admin.html)
+
+// 3. Cria o servidor HTTP e o Socket.IO
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 // Habilita o servidor a ler requisições em formato JSON
 app.use(express.json());
 
