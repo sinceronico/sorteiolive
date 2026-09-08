@@ -1,24 +1,3 @@
-// ROTA DE WEBHOOK DO TIKFINITY (Aceita formato automático ou customizado)
-app.post('/webhook/tikfinity', (req, res) => {
-  const data = req.body;
-
-  // Pega o nome do doador e a quantidade de moedas enviadas pelo TikFinity
-  const donorUser = data.username || data.uniqueId || data.nickname || (data.user && data.user.uniqueId);
-  const coins = data.coins || data.diamondCount || data.diamonds || data.repeatCount || 1;
-
-  if (donorUser) {
-    console.log(`🎁 [WEBHOOK TIKFINITY] @${donorUser} enviou ${coins} moeda(s)!`);
-
-    // Dispara para o seu admin.html
-    io.emit('giftReceived', {
-      username: donorUser,
-      coins: Number(coins),
-      streamer: activeStreamer
-    });
-  }
-
-  res.status(200).send({ success: true });
-});
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -27,7 +6,7 @@ const { WebcastPushConnection } = require('tiktok-live-connector');
 // 1. Inicializa o App Express
 const app = express();
 
-// 2. Configura os Middlewares
+// 2. Configura os Middlewares (DEVE VIR ANTES DAS ROTAS)
 app.use(express.json());
 app.use(express.static(__dirname)); // Serve arquivos estáticos como o admin.html
 
@@ -50,18 +29,23 @@ let activeStreamer = "";
 app.post('/webhook/tikfinity', (req, res) => {
   const data = req.body;
 
-  if (data && (data.event === 'gift' || data.type === 'gift')) {
-    const donorUser = data.username || data.nickname || data.uniqueId;
-    const coins = data.coins || data.diamondCount || data.repeatCount || 1;
+  // Captura o nome do doador tratando diferentes formatos do TikFinity
+  const donorUser = data.username || data.uniqueId || data.nickname || (data.user && data.user.uniqueId);
+  
+  // Captura o número de moedas/diamantes
+  const coins = data.coins || data.diamondCount || data.diamonds || data.repeatCount || 1;
 
+  if (donorUser) {
     console.log(`🎁 [WEBHOOK TIKFINITY] @${donorUser} enviou ${coins} moeda(s)!`);
 
-    // Dispara o evento de presente para o admin.html
+    // Dispara o evento de presente para o admin.html via Socket.IO
     io.emit('giftReceived', {
       username: donorUser,
       coins: Number(coins),
       streamer: data.streamer || activeStreamer
     });
+  } else {
+    console.log('⚠️ Webhook recebido, mas nenhum usuário identificado:', data);
   }
 
   res.status(200).send({ success: true });
