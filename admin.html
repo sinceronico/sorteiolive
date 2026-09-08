@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel do Streamer - Controle do Sorteio</title>
+  <title>Painel do Streamer - Controle do Sorteio (TikFinity)</title>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -310,6 +310,19 @@
       display: inline-block;
       margin-bottom: 25px;
     }
+
+    .webhook-box {
+      background: #020617;
+      border: 1px dashed var(--accent-color);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      word-break: break-all;
+      margin-top: 10px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -338,7 +351,7 @@
   </div>
 
   <div id="statusServer">
-    ⚪ Conectando...
+    🟢 Painel Ativo - Sincronizado via Firebase
   </div>
 
   <div class="card header-prize">
@@ -422,8 +435,6 @@
   </div>
 </div>
 
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
 <!-- MÓDULOS DO FIREBASE -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -444,7 +455,7 @@
   const analytics = getAnalytics(app);
   const db = getFirestore(app);
 
-  const SENHA_MEU_PAINEL = "5879";
+  const SENHA_MEU_PAINEL = "1234";
 
   window.verifyPass = function() {
     const entered = document.getElementById('passInput').value;
@@ -460,7 +471,6 @@
     document.getElementById('loginScreen').style.display = 'none';
   }
 
-  // Padrão 'sinceronico' ou o último salvo no localStorage
   const DEFAULT_STREAMER = 'sinceronico';
   let currentStreamer = localStorage.getItem('tiktok_username') || DEFAULT_STREAMER;
   
@@ -476,9 +486,6 @@
   let availablePool = [];
   let participants = [];
   let allIssuedTickets = [];
-
-  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
-  const socket = io(RENDER_URL);
 
   initStreamer(currentStreamer);
 
@@ -496,15 +503,8 @@
   function initStreamer(username) {
     currentStreamer = username;
     
-    // Atualiza link publico de visualização
     const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
     document.getElementById('publicLinkDisplay').innerText = `${baseUrl}?user=${username}`;
-
-    socket.emit('setLiveUser', { username: username });
-
-    const statusEl = document.getElementById('statusServer');
-    statusEl.style.background = '#22c55e';
-    statusEl.innerText = `🔥 Conectado à Live do TikTok: @${username} (Sincronizado)`;
 
     raffleDocRef = doc(db, "sorteios", username);
 
@@ -697,10 +697,6 @@
       saveDataToFirebase();
     }
   };
-
-  socket.on('giftReceived', (data) => {
-    handleGift(data.username, data.coins);
-  });
 
   window.simulateGift = function(coins) {
     const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt", "julia_play", "bruno_top"];
