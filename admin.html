@@ -3,262 +3,505 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Controle - Sorteio Live</title>
+  <title>Painel de Premios - TikTok Live</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <!-- Firebase Web SDK (v10) via CDN Modular para compatibilidade total com navegador -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDjJrfEOnwA-y7TGlNUxJ1v3AoU2mdqqwo",
+      authDomain: "sorteiolive-ec896.firebaseapp.com",
+      projectId: "sorteiolive-ec896",
+      storageBucket: "sorteiolive-ec896.firebasestorage.app",
+      messagingSenderId: "418542817743",
+      appId: "1:418542817743:web:2cd9fdba8b1151b7bcc2ba",
+      measurementId: "G-40EZ2GJY4V"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+  </script>
+
   <style>
-    :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --text-color: #f8fafc;
-      --accent-color: #38bdf8;
-      --accent-hover: #0284c7;
-      --border-color: #334155;
-      --danger-color: #ef4444;
-      --success-color: #22c55e;
+    .roulette-container {
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+      height: 120px;
+      background-color: #0f172a;
+      border: 3px solid #3b82f6;
+      border-radius: 12px;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    .roulette-track {
+      display: flex;
+      align-items: center;
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      will-change: transform;
+      transition-timing-function: cubic-bezier(0.1, 0.9, 0.2, 1);
     }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
+    .roulette-card {
+      min-width: 140px;
+      height: 90px;
+      margin: 0 8px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border: 2px solid #475569;
+      border-radius: 8px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
-    }
-
-    h1, h2, h3 {
-      margin-bottom: 15px;
-    }
-
-    .card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .grid-config {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-    }
-
-    .form-group {
-      margin-bottom: 15px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-
-    .form-group input {
-      width: 100%;
-      padding: 10px;
-      background-color: var(--bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      color: var(--text-color);
-      font-size: 1rem;
-    }
-
-    .form-group input:focus {
-      outline: none;
-      border-color: var(--accent-color);
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 10px;
-    }
-
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.2s;
-      color: white;
-    }
-
-    .btn-primary {
-      background-color: var(--accent-color);
-    }
-    .btn-primary:hover {
-      background-color: var(--accent-hover);
-    }
-
-    .btn-danger {
-      background-color: var(--danger-color);
-    }
-    .btn-danger:hover {
-      background-color: #dc2626;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.85rem;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
       font-weight: bold;
-      margin-top: 5px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-
-    .status-badge.connected {
-      background-color: rgba(34, 197, 94, 0.2);
-      color: var(--success-color);
-    }
-
-    .status-badge.disconnected {
-      background-color: rgba(239, 68, 68, 0.2);
-      color: var(--danger-color);
-    }
-
-    /* QUADRO DE LOGS / RECEBIDOS */
-    .logs-box {
-      background-color: var(--bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      height: 180px;
-      overflow-y: auto;
-      padding: 10px;
-      font-family: monospace;
-      font-size: 0.9rem;
-    }
-
-    .log-item {
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .log-item:last-child {
-      border-bottom: none;
-    }
-
-    /* TABELA DE PARTICIPANTES (HORIZONTAL E EMBAIXO DOS RECEBIDOS) */
-    .table-container {
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    th {
-      background-color: var(--bg-color);
-      color: var(--accent-color);
-      font-weight: 600;
-    }
-
-    .tickets-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      max-height: 150px;
-      overflow-y: auto;
-      padding: 4px;
-    }
-
-    .ticket-badge {
-      background-color: var(--bg-color);
-      border: 1px solid var(--accent-color);
-      color: var(--accent-color);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      display: inline-block;
+    .roulette-pointer {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 100%;
+      background-color: #ef4444;
+      z-index: 20;
+      box-shadow: 0 0 10px #ef4444;
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-900 text-white min-h-screen p-6 font-sans">
 
-  <div class="container">
-    <h1>⚙️ Painel de Controle - Sorteio Live</h1>
+  <!-- MODAL DE LOGIN -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="text-4xl mb-3">🔒</div>
+      <h2 class="text-2xl font-black text-blue-400 mb-1">Acesso Restrito</h2>
+      <p class="text-xs text-slate-400 mb-6">Digite a senha administrativa:</p>
+      
+      <form onsubmit="checkPassword(event)">
+        <input type="password" id="passwordInput" placeholder="Sua senha..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-center text-lg font-bold text-white mb-4 focus:outline-none focus:border-blue-500">
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-3 rounded-lg transition">
+          ENTRAR NO PAINEL
+        </button>
+      </form>
+    </div>
+  </div>
 
-    <!-- 1. PAINEL DE CONFIGURAÇÕES -->
-    <div class="grid-config">
-      <div class="card">
-        <h3>Configurações do Sorteio</h3>
-        <div class="form-group">
-          <label for="prizeInput">Prêmio Atual:</label>
-          <input type="text" id="prizeInput" placeholder="Ex: Pix R$ 100">
-        </div>
-        <div class="form-group">
-          <label for="coinsInput">Moedas por Bilhete:</label>
-          <input type="number" id="coinsInput" min="1" value="1">
-        </div>
-        <div class="btn-group">
-          <button class="btn-primary" onclick="saveConfig()">Salvar Configurações</button>
-          <button class="btn-danger" onclick="clearData()">Zerar Sorteio</button>
-        </div>
-      </div>
+  <!-- Cabeçalho -->
+  <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-700 pb-4">
+    <div>
+      <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
+      <p class="text-xs text-slate-400 mt-1">Conectado ao Firebase - Dados em Tempo Real</p>
+    </div>
+    <div class="flex items-center gap-3" id="adminHeaderControls">
+      <span id="statusBadge" class="px-3 py-1 bg-green-600 text-xs font-bold rounded-full uppercase">Status: Online</span>
+      <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
+    </div>
+  </header>
 
-      <div class="card">
-        <h3>Conexão TikTok Direct</h3>
-        <div class="form-group">
-          <label for="streamerInput">Usuário do TikTok (@):</label>
-          <input type="text" id="streamerInput" placeholder="Ex: seunome">
-        </div>
-        <button class="btn-primary" onclick="connectTikTok()">Conectar Live Direct</button>
-        <div id="connectionStatus" class="status-badge disconnected">Desconectado</div>
+  <!-- CARD DE CONTROLE DE SESSÃO -->
+  <div id="sessionControlCard" class="max-w-6xl mx-auto mb-6 bg-slate-800 border border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-xl">
+    <div>
+      <h3 class="font-bold text-sm text-slate-200">Status do Acúmulo de Bilhetes</h3>
+      <p id="sessionStatusText" class="text-xs text-red-400 font-bold">🔴 PARADO (Presentes recebidos não geram bilhetes)</p>
+    </div>
+    <button id="btnToggleSession" onclick="toggleSession()" class="bg-green-600 hover:bg-green-500 text-white text-sm font-extrabold px-6 py-2.5 rounded-lg transition shadow-lg">
+      ▶️ INICIAR SORTEIO
+    </button>
+  </div>
+
+  <!-- CARD DO PRÊMIO -->
+  <div class="max-w-6xl mx-auto mb-6 bg-gradient-to-r from-amber-500/20 via-slate-800 to-amber-500/20 border border-amber-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <div class="p-3 bg-amber-500/20 text-amber-400 rounded-lg text-3xl">🏆</div>
+      <div>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-amber-400">Prêmio do Sorteio</h3>
+        <div id="prizeDisplay" class="text-2xl font-black text-amber-300">Nenhum prêmio definido</div>
       </div>
     </div>
+    <div id="prizeInputContainer" class="flex items-center gap-2 w-full sm:w-auto">
+      <input type="text" id="prizeInput" oninput="updatePrize()" placeholder="Ex: PIX de R$ 100" class="bg-slate-900 border border-amber-500/50 rounded-lg px-4 py-2 text-base text-amber-200 placeholder-slate-500 w-full sm:w-96 font-bold focus:outline-none focus:border-amber-400">
+    </div>
+  </div>
 
-    <!-- 2. HISTÓRICO DE RECEBIDOS (POSICIONADO ACIMA) -->
-    <div class="card">
-      <h3>🎁 Histórico de Presentes Recebidos</h3>
-      <div id="logsBox" class="logs-box">
-        <div class="log-item" style="color: #64748b;">Aguardando recebimentos de presentes...</div>
+  <!-- LINK PÚBLICO -->
+  <div id="publicLinkCard" class="max-w-6xl mx-auto mb-6 bg-slate-800 border border-blue-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="p-3 bg-blue-600/20 text-blue-400 rounded-lg text-2xl">🔗</div>
+      <div>
+        <h3 class="font-bold text-sm text-blue-300">Link Público para os Espectadores</h3>
+        <p class="text-xs text-slate-400">Envie este link para consulta em tempo real:</p>
       </div>
     </div>
+    <div class="flex items-center gap-2 w-full sm:w-auto">
+      <input type="text" id="publicUrlInput" readonly class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-slate-300 w-full sm:w-80 font-mono">
+      <button onclick="copyPublicLink()" id="btnCopy" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded font-bold transition whitespace-nowrap">
+        Copiar Link
+      </button>
+    </div>
+  </div>
 
-    <!-- 3. LISTA DE PARTICIPANTES (POSICIONADA ABAIXO DOS RECEBIDOS EM LARGURA TOTAL) -->
-    <div class="card">
-      <h3>👥 Participantes e Bilhetes Adquiridos</h3>
-      <div class="table-container">
-        <table>
-          <thead>
+  <main class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- COLUNA ESQUERDA -->
+    <section id="adminSection" class="md:col-span-2 flex flex-col gap-6">
+
+      <!-- ROLETA DE SORTEIO -->
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h2 class="text-xl font-bold mb-4 text-yellow-400 flex items-center gap-2">🎰 Sorteio dos Números da Sorte</h2>
+        
+        <div class="roulette-container mb-6">
+          <div class="roulette-pointer"></div>
+          <div id="rouletteTrack" class="roulette-track">
+            <div class="roulette-card">Aguardando...</div>
+          </div>
+        </div>
+
+        <button onclick="startDraw()" id="btnDraw" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-extrabold py-3 px-6 rounded-lg text-lg shadow-lg transition transform active:scale-95">
+          🎲 REALIZAR SORTEIO (10s)
+        </button>
+      </div>
+
+      <!-- REGRAS E CONFIGURAÇÃO -->
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h2 class="text-lg font-bold mb-4 text-blue-400">⚙️ Regras do Sorteio</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
+            <label class="text-xs text-slate-400 font-medium mb-1">1 Núm. da Sorte a cada:</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="coinsPerTicket" value="1" min="1" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-24 text-center font-bold text-sm">
+              <span class="text-xs text-slate-300">Moeda(s)</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
+            <label class="text-xs text-slate-400 font-medium mb-1">Máximo de Bilhetes no Sorteio:</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="maxTicketsLimit" value="100000" min="1" max="100000" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-28 text-center font-bold text-sm">
+              <span class="text-xs text-slate-400">(Máx. 100.000)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEED DE PRESENTES -->
+      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+        <h2 class="text-lg font-bold mb-3 text-emerald-400">🎁 Últimos Presentes Recebidos</h2>
+        <div id="giftFeed" class="space-y-2 max-h-48 overflow-y-auto pr-2 text-sm">
+          <p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- COLUNA DIREITA: PARTICIPANTES -->
+    <section id="tableSection" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col md:col-span-1">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
+        <span id="totalTicketsCount" class="text-xs bg-blue-900 text-blue-200 px-2.5 py-1 rounded-full font-bold">Total Bilhetes: 0</span>
+      </div>
+
+      <div class="mb-4">
+        <input type="text" id="searchInput" onkeyup="filterParticipants()" placeholder="🔍 Buscar seu @usuario..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
+      </div>
+
+      <div class="flex-1 overflow-y-auto max-h-[550px]">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0">
             <tr>
-              <th style="width: 25%;">Usuário</th>
-              <th style="width: 15%;">Moedas Enviadas</th>
-              <th style="width: 15%;">Total de Bilhetes</th>
-              <th style="width: 45%;">Números do Sorteio</th>
+              <th class="p-3">Usuário</th>
+              <th class="p-3 text-center">Moedas</th>
+              <th class="p-3">Números da Sorte</th>
             </tr>
           </thead>
-          <tbody id="participantsTable">
+          <tbody id="participantsTable" class="divide-y divide-slate-700">
             <tr>
-              <td colspan="4" style="text-align: center; color: #64748b;">Nenhum participante ainda.</td>
+              <td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td>
             </tr>
           </tbody>
         </table>
       </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DO GANHADOR -->
+  <div id="winnerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 border-2 border-yellow-400 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+      <h2 class="text-2xl font-black text-yellow-400 mb-2">🎉 TEMOS UM GANHADOR! 🎉</h2>
+      <p class="text-slate-300 text-sm mb-4">O Número da Sorte contemplado foi:</p>
+      
+      <div class="bg-slate-900 border border-yellow-500/30 rounded-xl p-6 mb-6">
+        <div id="winnerNumber" class="text-5xl font-black text-yellow-400 mb-2">#0000</div>
+        <div id="winnerName" class="text-2xl font-extrabold text-green-400 break-words">@usuario</div>
+      </div>
+
+      <button onclick="closeWinnerModal()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-extrabold py-3 rounded-lg transition">
+        FECHAR E CONTINUAR
+      </button>
     </div>
   </div>
 
-  <script src="admin.js"></script>
+  <script>
+    const socket = io();
+    const ADMIN_PASSWORD = "5879"; 
+    
+    let participants = {};
+    let isSessionActive = false;
+    let isSpinning = false;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPublicView = urlParams.get('view') === 'public';
+
+    function checkPassword(e) {
+      if (e) e.preventDefault();
+      const inputPass = document.getElementById('passwordInput').value;
+      if (inputPass === ADMIN_PASSWORD) {
+        document.getElementById('loginModal').classList.add('hidden');
+        sessionStorage.setItem('admin_authenticated', 'true');
+      } else {
+        alert('Senha incorreta!');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const publicUrl = window.location.origin + window.location.pathname + '?view=public';
+      document.getElementById('publicUrlInput').value = publicUrl;
+
+      if (isPublicView) {
+        document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('adminSection').style.display = 'none';
+        document.getElementById('adminHeaderControls').style.display = 'none';
+        document.getElementById('publicLinkCard').style.display = 'none';
+        document.getElementById('sessionControlCard').style.display = 'none';
+        document.getElementById('prizeInputContainer').style.display = 'none';
+        
+        const tableSection = document.getElementById('tableSection');
+        tableSection.classList.remove('md:col-span-1');
+        tableSection.classList.add('md:col-span-3');
+      } else if (sessionStorage.getItem('admin_authenticated') === 'true') {
+        document.getElementById('loginModal').classList.add('hidden');
+      }
+    });
+
+    // RECEBE ESTADO COMPLETO RECONSTRUÍDO DO FIREBASE
+    socket.on('syncState', (state) => {
+      participants = state.participants || {};
+      isSessionActive = state.isSessionActive;
+      
+      document.getElementById('prizeDisplay').innerText = state.currentPrize || "Nenhum prêmio definido";
+      if (!isPublicView && document.getElementById('prizeInput')) {
+        document.getElementById('prizeInput').value = state.currentPrize || "";
+      }
+
+      updateSessionUI();
+      updateTable();
+    });
+
+    function toggleSession() {
+      isSessionActive = !isSessionActive;
+      socket.emit('toggleSession', isSessionActive);
+    }
+
+    socket.on('sessionStatusUpdated', (status) => {
+      isSessionActive = status;
+      updateSessionUI();
+    });
+
+    function updateSessionUI() {
+      if (isPublicView) return;
+
+      const btn = document.getElementById('btnToggleSession');
+      const text = document.getElementById('sessionStatusText');
+
+      if (isSessionActive) {
+        btn.innerText = '⏹️ PARAR SORTEIO';
+        btn.className = 'bg-red-600 hover:bg-red-500 text-white text-sm font-extrabold px-6 py-2.5 rounded-lg transition shadow-lg';
+        text.innerText = '🟢 EM ANDAMENTO (Presentes gerando bilhetes)';
+        text.className = 'text-xs text-green-400 font-bold';
+      } else {
+        btn.innerText = '▶️ INICIAR SORTEIO';
+        btn.className = 'bg-green-600 hover:bg-green-500 text-white text-sm font-extrabold px-6 py-2.5 rounded-lg transition shadow-lg';
+        text.innerText = '🔴 PARADO (Pausado - Dados salvos no Firebase)';
+        text.className = 'text-xs text-red-400 font-bold';
+      }
+    }
+
+    function updatePrize() {
+      const prizeText = document.getElementById('prizeInput').value;
+      socket.emit('updatePrize', prizeText);
+    }
+
+    socket.on('prizeUpdated', (prizeText) => {
+      document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
+      if (!isPublicView) {
+        document.getElementById('prizeInput').value = prizeText;
+      }
+    });
+
+    socket.on('participantsUpdated', (updatedParticipants) => {
+      participants = updatedParticipants;
+      updateTable();
+    });
+
+    socket.on('newGiftNotification', (data) => {
+      if (isPublicView) return;
+      const feed = document.getElementById('giftFeed');
+      if (feed.children[0] && feed.children[0].tagName === 'P') feed.innerHTML = '';
+      
+      const item = document.createElement('div');
+      item.className = 'bg-slate-900 p-2.5 rounded border-l-4 border-emerald-500 flex justify-between items-center';
+      item.innerHTML = `
+        <span class="font-bold text-slate-200">@${data.username}</span>
+        <span class="text-emerald-400 font-extrabold">+${data.coins} moeda(s)</span>
+      `;
+      feed.prepend(item);
+    });
+
+    function updateTable() {
+      const tbody = document.getElementById('participantsTable');
+      tbody.innerHTML = '';
+
+      let totalTickets = 0;
+      const keys = Object.keys(participants);
+
+      if (keys.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td></tr>';
+        document.getElementById('totalTicketsCount').innerText = 'Total Bilhetes: 0';
+        return;
+      }
+
+      keys.forEach(username => {
+        const data = participants[username];
+        totalTickets += data.tickets.length;
+
+        const sortedTickets = [...data.tickets].sort((a, b) => a - b);
+        const numbersHtml = sortedTickets.length > 0 
+          ? sortedTickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
+          : '<span class="text-slate-500 text-xs italic">Sem números</span>';
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-700/50 transition participant-row';
+        tr.setAttribute('data-username', username.toLowerCase());
+        tr.innerHTML = `
+          <td class="p-3 font-bold text-slate-200">@${username}</td>
+          <td class="p-3 text-center text-slate-400">${data.coins}</td>
+          <td class="p-3">${numbersHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
+      filterParticipants();
+    }
+
+    function filterParticipants() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('.participant-row');
+      rows.forEach(row => {
+        const username = row.getAttribute('data-username');
+        row.style.display = username.includes(query) ? '' : 'none';
+      });
+    }
+
+    function startDraw() {
+      if (isSpinning || isPublicView) return;
+
+      let allTickets = [];
+      Object.keys(participants).forEach(username => {
+        participants[username].tickets.forEach(ticketNum => {
+          allTickets.push({ number: ticketNum, username: username });
+        });
+      });
+
+      if (allTickets.length === 0) {
+        alert('Não há Números da Sorte para realizar o sorteio!');
+        return;
+      }
+
+      isSpinning = true;
+      document.getElementById('btnDraw').disabled = true;
+
+      const winningTicket = allTickets[Math.floor(Math.random() * allTickets.length)];
+      const track = document.getElementById('rouletteTrack');
+      track.style.transition = 'none';
+      track.style.transform = 'translateX(0px)';
+      track.innerHTML = '';
+
+      const totalCards = 110;
+      const targetCardIndex = 100;
+
+      for (let i = 0; i < totalCards; i++) {
+        const card = document.createElement('div');
+        card.className = 'roulette-card';
+        let cardData = (i === targetCardIndex) ? winningTicket : allTickets[Math.floor(Math.random() * allTickets.length)];
+        
+        card.innerHTML = `
+          <span class="text-xl font-black text-yellow-400">#${cardData.number}</span>
+          <span class="text-xs text-slate-300 truncate max-w-[120px]">@${cardData.username}</span>
+        `;
+        track.appendChild(card);
+      }
+
+      const totalDuration = 10;
+      const cardWidth = 156;
+      const containerWidth = document.querySelector('.roulette-container').offsetWidth;
+      const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
+
+      setTimeout(() => {
+        track.style.transition = `transform ${totalDuration}s cubic-bezier(0.1, 0.9, 0.1, 1)`;
+        track.style.transform = `translateX(-${stopPosition}px)`;
+      }, 50);
+
+      setTimeout(() => {
+        showWinner(winningTicket);
+        isSpinning = false;
+        document.getElementById('btnDraw').disabled = false;
+      }, (totalDuration * 1000) + 300);
+    }
+
+    function showWinner(ticket) {
+      document.getElementById('winnerNumber').innerText = `#${ticket.number}`;
+      document.getElementById('winnerName').innerText = `@${ticket.username}`;
+      document.getElementById('winnerModal').classList.remove('hidden');
+
+      confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+    }
+
+    function closeWinnerModal() {
+      document.getElementById('winnerModal').classList.add('hidden');
+    }
+
+    function clearData() {
+      if (confirm('Deseja zerar todos os números no Firebase?')) {
+        socket.emit('clearData');
+      }
+    }
+
+    socket.on('dataCleared', () => {
+      participants = {};
+      isSessionActive = false;
+      updateSessionUI();
+      updateTable();
+      if (!isPublicView) {
+        document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
+      }
+    });
+
+    function copyPublicLink() {
+      const input = document.getElementById('publicUrlInput');
+      input.select();
+      document.execCommand('copy');
+      const btn = document.getElementById('btnCopy');
+      btn.innerText = 'Copiado! ✅';
+      setTimeout(() => { btn.innerText = 'Copiar Link'; }, 2000);
+    }
+  </script>
 </body>
 </html>
