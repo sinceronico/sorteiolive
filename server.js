@@ -36,24 +36,30 @@ function connectToTikTok(username, sessionId = "") {
   const hasSession = sessionId && sessionId.trim() !== "";
   console.log(`📡 Tentando conectar à live de: @${activeStreamer}${hasSession ? ' (Com Session ID)' : ' (Sem Session ID)'}...`);
 
-  // Monta as opções de conexão
+  // Configurações otimizadas para burlar o erro 403 Forbidden no Render
   const connectionOptions = {
     processInitialData: true,
     enableExtendedGiftInfo: true,
-    requestPollingIntervalMs: 1000,
+    enableWebsocketUpgrade: true,
+    requestPollingIntervalMs: 2000,
     clientParams: {
       "app_language": "pt-BR",
       "device_platform": "web",
-      "webcast_language": "pt-BR"
+      "webcast_language": "pt-BR",
+      "priority_region": "BR"
     },
     requestOptions: {
+      timeout: 10000,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
       }
     }
   };
 
+  // Aplica o sessionId se fornecido
   if (hasSession) {
     connectionOptions.sessionId = sessionId.trim();
   }
@@ -65,16 +71,22 @@ function connectToTikTok(username, sessionId = "") {
     io.emit('statusUpdate', { status: 'connected', streamer: activeStreamer });
   }).catch(err => {
     console.error(`❌ Falha ao conectar em @${activeStreamer}:`, err.message || err);
-    io.emit('statusUpdate', { status: 'error', message: err.message || 'Live offline ou não encontrada' });
+    
+    let userFriendlyError = err.message || 'Live offline ou não encontrada';
+    if (err.toString().includes('403')) {
+      userFriendlyError = 'Erro 403: TikTok bloqueou o IP do Render. Tente fornecer um SessionID atualizado ou aguarde alguns minutos.';
+    }
+
+    io.emit('statusUpdate', { status: 'error', message: userFriendlyError });
   });
 
-  // Captura de Presentes
+  // Evento de Recebimento de Presentes
   tiktokLiveConnection.on('gift', data => {
     const donorUser = data.uniqueId || data.nickname || (data.userDetails && data.userDetails.uniqueId);
 
     if (!donorUser) return;
 
-    // Se for presente contínuo (combo) e não finalizou a contagem, aguarda
+    // Trata presentes de combo/repetição
     if (data.giftType === 1 && data.repeatEnd === false) {
       return;
     }
@@ -92,7 +104,7 @@ function connectToTikTok(username, sessionId = "") {
     });
   });
 
-  // Monitor do Chat no terminal para depuração
+  // Log de Chat para depuração
   tiktokLiveConnection.on('chat', data => {
     console.log(`💬 [@${data.uniqueId}]: ${data.comment}`);
   });
@@ -101,9 +113,13 @@ function connectToTikTok(username, sessionId = "") {
     console.log(`🔴 Live de @${activeStreamer} foi encerrada.`);
     io.emit('statusUpdate', { status: 'ended', streamer: activeStreamer });
   });
+
+  tiktokLiveConnection.on('error', err => {
+    console.error('⚠️ Erro na conexão TikTok:', err);
+  });
 }
 
-// Socket.io Handlers
+// Socket.io
 io.on('connection', (socket) => {
   console.log(`⚡ Cliente conectado ao Socket: ${socket.id}`);
 
