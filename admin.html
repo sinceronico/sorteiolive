@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Sorteio - TikTok Live</title>
+  <title>Painel da Rifa - TikTok Live</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Socket.IO -->
@@ -62,18 +62,38 @@
 <body class="bg-slate-900 text-white min-h-screen p-6 font-sans">
 
   <!-- Cabeçalho -->
-  <header class="max-w-6xl mx-auto flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
-    <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
-    <div class="flex items-center gap-3">
+  <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700 pb-4">
+    <div>
+      <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
+      <p class="text-xs text-slate-400 mt-1">Acompanhamento e sorteios de bilhetes em tempo real</p>
+    </div>
+    <div class="flex items-center gap-3" id="adminHeaderControls">
       <span id="statusBadge" class="px-3 py-1 bg-green-600 text-xs font-bold rounded-full uppercase">Status: Online</span>
       <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
     </div>
   </header>
 
+  <!-- CARD DO LINK PÚBLICO DOS PARTICIPANTES -->
+  <div id="publicLinkCard" class="max-w-6xl mx-auto mb-6 bg-slate-800 border border-blue-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="p-3 bg-blue-600/20 text-blue-400 rounded-lg text-2xl">🔗</div>
+      <div>
+        <h3 class="font-bold text-sm text-blue-300">Link Público para os Espectadores</h3>
+        <p class="text-xs text-slate-400">Envie este link na live para os participantes consultarem seus Números da Sorte em tempo real:</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 w-full sm:w-auto">
+      <input type="text" id="publicUrlInput" readonly class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-slate-300 w-full sm:w-80 font-mono">
+      <button onclick="copyPublicLink()" id="btnCopy" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded font-bold transition whitespace-nowrap">
+        Copiar Link
+      </button>
+    </div>
+  </div>
+
   <main class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
 
-    <!-- COLUNA DA ESQUERDA: CONFIGURAÇÃO & SORTEIO -->
-    <section class="md:col-span-2 flex flex-col gap-6">
+    <!-- COLUNA DA ESQUERDA: CONFIGURAÇÃO & SORTEIO (OCULTA NO MODO PÚBLICO) -->
+    <section id="adminSection" class="md:col-span-2 flex flex-col gap-6">
 
       <!-- CARD DE SORTEIO / ROLETA HORIZONTAL -->
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
@@ -115,13 +135,18 @@
     </section>
 
     <!-- COLUNA DA DIREITA: TABELA DE PARTICIPANTES E SEUS NÚMEROS -->
-    <section class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col">
+    <section id="tableSection" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col md:col-span-1">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
         <span id="totalTicketsCount" class="text-xs bg-blue-900 text-blue-200 px-2.5 py-1 rounded-full font-bold">Total Bilhetes: 0</span>
       </div>
 
-      <div class="flex-1 overflow-y-auto max-h-[500px]">
+      <!-- CAMPO DE PESQUISA RÁPIDA -->
+      <div class="mb-4">
+        <input type="text" id="searchInput" onkeyup="filterParticipants()" placeholder="🔍 Buscar seu @usuario..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
+      </div>
+
+      <div class="flex-1 overflow-y-auto max-h-[550px]">
         <table class="w-full text-left text-sm">
           <thead class="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0">
             <tr>
@@ -162,9 +187,49 @@
     const socket = io();
     
     // Armazena dados dos participantes
-    let participants = {}; // { username: { coins: 0, tickets: [1, 2, 3...] } }
-    let nextTicketNumber = 1000; // Sequência dos números da sorte (ex: 1000, 1001, 1002...)
+    let participants = {}; 
+    let nextTicketNumber = 1000; 
     let isSpinning = false;
+
+    // Detecta se a página foi aberta no modo público pelos espectadores (?view=public)
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPublicView = urlParams.get('view') === 'public';
+
+    // Configuração inicial da interface
+    window.addEventListener('DOMContentLoaded', () => {
+      const publicUrl = window.location.origin + window.location.pathname + '?view=public';
+      document.getElementById('publicUrlInput').value = publicUrl;
+
+      // Se for visualização pública dos participantes, oculta painéis administrativos
+      if (isPublicView) {
+        document.getElementById('adminSection').style.display = 'none';
+        document.getElementById('adminHeaderControls').style.display = 'none';
+        document.getElementById('publicLinkCard').style.display = 'none';
+        
+        // Expande a tabela para ocupar a tela toda
+        const tableSection = document.getElementById('tableSection');
+        tableSection.classList.remove('md:col-span-1');
+        tableSection.classList.add('md:col-span-3');
+      }
+    });
+
+    // Função para copiar o link público com 1 clique
+    function copyPublicLink() {
+      const input = document.getElementById('publicUrlInput');
+      input.select();
+      document.execCommand('copy');
+      
+      const btn = document.getElementById('btnCopy');
+      btn.innerText = 'Copiado! ✅';
+      btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+      btn.classList.add('bg-green-600');
+
+      setTimeout(() => {
+        btn.innerText = 'Copiar Link';
+        btn.classList.remove('bg-green-600');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+      }, 2000);
+    }
 
     // Conexão Socket.IO
     socket.on('connect', () => {
@@ -179,6 +244,7 @@
 
     // Adiciona ao Feed
     function addGiftToFeed(username, coins) {
+      if (isPublicView) return;
       const feed = document.getElementById('giftFeed');
       if (feed.children[0] && feed.children[0].tagName === 'P') {
         feed.innerHTML = '';
@@ -194,7 +260,7 @@
 
     // Registra Moedas e Atribui os Números da Sorte
     function registerContribution(username, coins) {
-      const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket').value) || 1;
+      const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket')?.value) || 1;
       
       if (!participants[username]) {
         participants[username] = { coins: 0, tickets: [] };
@@ -202,10 +268,8 @@
 
       participants[username].coins += Number(coins);
 
-      // Quantidade total de bilhetes que o participante tem direito
       const targetTicketsCount = Math.floor(participants[username].coins / coinsPerTicket);
       
-      // Atribui novos números caso tenha gerado novos bilhetes
       while (participants[username].tickets.length < targetTicketsCount) {
         participants[username].tickets.push(nextTicketNumber);
         nextTicketNumber++;
@@ -214,7 +278,7 @@
       updateTable();
     }
 
-    // Atualiza a Tabela Lateral com os Números da Sorte
+    // Atualiza a Tabela de Participantes
     function updateTable() {
       const tbody = document.getElementById('participantsTable');
       tbody.innerHTML = '';
@@ -232,13 +296,13 @@
         const data = participants[username];
         totalTickets += data.tickets.length;
 
-        // Formata os números da sorte em tags visuais
         const numbersHtml = data.tickets.length > 0 
           ? data.tickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
           : '<span class="text-slate-500 text-xs italic">Sem números</span>';
 
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-700/50 transition';
+        tr.className = 'hover:bg-slate-700/50 transition participant-row';
+        tr.setAttribute('data-username', username.toLowerCase());
         tr.innerHTML = `
           <td class="p-3 font-bold text-slate-200">@${username}</td>
           <td class="p-3 text-center text-slate-400">${data.coins}</td>
@@ -248,13 +312,28 @@
       });
 
       document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
+      filterParticipants(); // Mantém o filtro de busca aplicado, se houver
     }
 
-    // LÓGICA DO SORTEIO DA ROLETA COM NÚMEROS DA SORTE
-    function startDraw() {
-      if (isSpinning) return;
+    // Busca rápida por nome de usuário na tabela
+    function filterParticipants() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('.participant-row');
 
-      // Monta a lista completa de todos os números da sorte em jogo
+      rows.forEach(row => {
+        const username = row.getAttribute('data-username');
+        if (username.includes(query)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // LÓGICA DO SORTEIO DA ROLETA
+    function startDraw() {
+      if (isSpinning || isPublicView) return;
+
       let allTickets = [];
       Object.keys(participants).forEach(username => {
         participants[username].tickets.forEach(ticketNum => {
@@ -270,7 +349,6 @@
       isSpinning = true;
       document.getElementById('btnDraw').disabled = true;
 
-      // Sorteia um item aleatório da lista de bilhetes
       const winnerIndex = Math.floor(Math.random() * allTickets.length);
       const winningTicket = allTickets[winnerIndex];
 
@@ -280,9 +358,8 @@
       track.innerHTML = '';
 
       const totalCards = 60;
-      const targetCardIndex = 50; // Onde a roleta vai parar
+      const targetCardIndex = 50;
 
-      // Popula o carrossel com os números da sorte
       for (let i = 0; i < totalCards; i++) {
         const card = document.createElement('div');
         card.className = 'roulette-card';
@@ -296,12 +373,10 @@
         track.appendChild(card);
       }
 
-      // Tempo de roleta com base na quantidade de números em jogo
       const baseDuration = 4;
       const extraDuration = Math.min(allTickets.length * 0.1, 4);
       const totalDuration = baseDuration + extraDuration;
 
-      // Centraliza a parada no card vencedor
       const cardWidth = 156;
       const containerWidth = document.querySelector('.roulette-container').offsetWidth;
       const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
@@ -318,7 +393,7 @@
       }, (totalDuration * 1000) + 300);
     }
 
-    // Exibe o Modal do Ganhador com número e nome
+    // Exibe o Modal do Ganhador
     function showWinner(ticket) {
       document.getElementById('winnerNumber').innerText = `#${ticket.number}`;
       document.getElementById('winnerName').innerText = `@${ticket.username}`;
