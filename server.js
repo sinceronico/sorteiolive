@@ -1,11 +1,10 @@
-// Importa o pacote do TikTok Live Connector
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const TikTokLiveConnector = require('tiktok-live-connector');
 
-// Resolve o construtor correto independente da versão
+// Resolve o construtor correto da biblioteca de forma compatível
 const WebcastConnection = TikTokLiveConnector.WebcastPushConnection || TikTokLiveConnector.default || TikTokLiveConnector;
-
-// Correção da importação da classe WebcastPushConnection para compatibilidade
-const WebcastPushConnection = TikTokLiveConnector.WebcastPushConnection || TikTokLiveConnector;
 
 // 1. Inicializa o App Express
 const app = express();
@@ -80,34 +79,40 @@ io.on('connection', (socket) => {
       options.sessionId = sessionId;
     }
 
-    tiktokLiveConnection = new WebcastPushConnection(username, options);
+    // Instancia usando a conexão corrigida
+    try {
+      tiktokLiveConnection = new WebcastConnection(username, options);
 
-    tiktokLiveConnection.connect().then(state => {
-      console.log(`✅ Conectado à live de @${username} (Room ID: ${state.roomId})`);
-      socket.emit('statusUpdate', { status: 'connected', streamer: username });
-    }).catch(err => {
-      console.error(`❌ Erro ao conectar na live de @${username}:`, err);
-      socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar' });
-    });
-
-    // Escuta presentes do tiktok-live-connector (fallback/conexão direta)
-    tiktokLiveConnection.on('gift', data => {
-      if (data.giftType === 1 && data.repeatEnd === false) {
-        return; // Ignora se for combo incompleto
-      }
-
-      const totalCoins = (data.diamondCount || 1) * (data.repeatCount || 1);
-
-      io.emit('giftReceived', {
-        username: data.uniqueId,
-        coins: totalCoins,
-        streamer: username
+      tiktokLiveConnection.connect().then(state => {
+        console.log(`✅ Conectado à live de @${username} (Room ID: ${state.roomId})`);
+        socket.emit('statusUpdate', { status: 'connected', streamer: username });
+      }).catch(err => {
+        console.error(`❌ Erro ao conectar na live de @${username}:`, err);
+        socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar' });
       });
-    });
 
-    tiktokLiveConnection.on('streamEnd', () => {
-      socket.emit('statusUpdate', { status: 'ended', streamer: username });
-    });
+      // Escuta presentes do tiktok-live-connector
+      tiktokLiveConnection.on('gift', data => {
+        if (data.giftType === 1 && data.repeatEnd === false) {
+          return; // Ignora se for combo incompleto
+        }
+
+        const totalCoins = (data.diamondCount || 1) * (data.repeatCount || 1);
+
+        io.emit('giftReceived', {
+          username: data.uniqueId,
+          coins: totalCoins,
+          streamer: username
+        });
+      });
+
+      tiktokLiveConnection.on('streamEnd', () => {
+        socket.emit('statusUpdate', { status: 'ended', streamer: username });
+      });
+    } catch (err) {
+      console.error(`❌ Erro de inicialização com a live de @${username}:`, err);
+      socket.emit('statusUpdate', { status: 'error', message: 'Erro ao inicializar conexão.' });
+    }
   });
 });
 
