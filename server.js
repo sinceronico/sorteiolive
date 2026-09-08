@@ -1,10 +1,19 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const TikTokLiveConnector = require('tiktok-live-connector');
+const TikTokConnector = require('tiktok-live-connector');
 
-// Resolve o construtor correto da biblioteca de forma compatível
-const WebcastConnection = TikTokLiveConnector.WebcastPushConnection || TikTokLiveConnector.default || TikTokLiveConnector;
+// Detecta a classe correta independente da versão do pacote
+let WebcastConnection;
+if (typeof TikTokConnector === 'function') {
+  WebcastConnection = TikTokConnector;
+} else if (TikTokConnector.WebcastPushConnection) {
+  WebcastConnection = TikTokConnector.WebcastPushConnection;
+} else if (TikTokConnector.default) {
+  WebcastConnection = TikTokConnector.default;
+} else {
+  WebcastConnection = TikTokConnector;
+}
 
 // 1. Inicializa o App Express
 const app = express();
@@ -79,7 +88,6 @@ io.on('connection', (socket) => {
       options.sessionId = sessionId;
     }
 
-    // Instancia usando a conexão corrigida
     try {
       tiktokLiveConnection = new WebcastConnection(username, options);
 
@@ -110,8 +118,11 @@ io.on('connection', (socket) => {
         socket.emit('statusUpdate', { status: 'ended', streamer: username });
       });
     } catch (err) {
-      console.error(`❌ Erro de inicialização com a live de @${username}:`, err);
-      socket.emit('statusUpdate', { status: 'error', message: 'Erro ao inicializar conexão.' });
+      console.error(`❌ Erro interno na biblioteca TikTok:`, err);
+      socket.emit('statusUpdate', { 
+        status: 'error', 
+        message: 'Falha ao inicializar. Use o TikFinity para enviar os presentes.' 
+      });
     }
   });
 });
