@@ -58,28 +58,28 @@
 
     .form-group {
       margin-bottom: 15px;
+    }
 
-      label {
-        display: block;
-        margin-bottom: 6px;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
 
-      input {
-        width: 100%;
-        padding: 10px;
-        background-color: var(--bg-color);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        color: var(--text-color);
-        font-size: 1rem;
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-color);
+      font-size: 1rem;
+    }
 
-        &:focus {
-          outline: none;
-          border-color: var(--accent-color);
-        }
-      }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent-color);
     }
 
     .btn-group {
@@ -99,12 +99,16 @@
 
     .btn-primary {
       background-color: var(--accent-color);
-      &:hover { background-color: var(--accent-hover); }
+    }
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
     }
 
     .btn-danger {
       background-color: var(--danger-color);
-      &:hover { background-color: #dc2626; }
+    }
+    .btn-danger:hover {
+      background-color: #dc2626;
     }
 
     .status-badge {
@@ -114,12 +118,19 @@
       font-size: 0.85rem;
       font-weight: bold;
       margin-top: 5px;
-
-      &.connected { background-color: rgba(34, 197, 94, 0.2); color: var(--success-color); }
-      &.disconnected { background-color: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
     }
 
-    /* ESTILOS DE RECEBIDOS E PARTICIPANTES (EM COLUNA/EMPILHADOS) */
+    .status-badge.connected {
+      background-color: rgba(34, 197, 94, 0.2);
+      color: var(--success-color);
+    }
+
+    .status-badge.disconnected {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger-color);
+    }
+
+    /* QUADRO DE LOGS / RECEBIDOS */
     .logs-box {
       background-color: var(--bg-color);
       border: 1px solid var(--border-color);
@@ -134,10 +145,12 @@
     .log-item {
       padding: 6px 0;
       border-bottom: 1px solid var(--border-color);
-      &:last-child { border-bottom: none; }
+    }
+    .log-item:last-child {
+      border-bottom: none;
     }
 
-    /* TABELA DE PARTICIPANTES HORIZONTAL */
+    /* TABELA DE PARTICIPANTES (HORIZONTAL E EMBAIXO DOS RECEBIDOS) */
     .table-container {
       overflow-x: auto;
     }
@@ -186,7 +199,7 @@
   <div class="container">
     <h1>⚙️ Painel de Controle - Sorteio Live</h1>
 
-    <!-- PAINEL DE CONFIGURAÇÕES -->
+    <!-- 1. PAINEL DE CONFIGURAÇÕES -->
     <div class="grid-config">
       <div class="card">
         <h3>Configurações do Sorteio</h3>
@@ -215,7 +228,7 @@
       </div>
     </div>
 
-    <!-- HISTÓRICO DE RECEBIDOS (ACIMA) -->
+    <!-- 2. HISTÓRICO DE RECEBIDOS (POSICIONADO ACIMA) -->
     <div class="card">
       <h3>🎁 Histórico de Presentes Recebidos</h3>
       <div id="logsBox" class="logs-box">
@@ -223,7 +236,7 @@
       </div>
     </div>
 
-    <!-- LISTA DE PARTICIPANTES E NÚMEROS (ABAIXO E HORIZONTAL) -->
+    <!-- 3. LISTA DE PARTICIPANTES (POSICIONADA ABAIXO DOS RECEBIDOS EM LARGURA TOTAL) -->
     <div class="card">
       <h3>👥 Participantes e Bilhetes Adquiridos</h3>
       <div class="table-container">
