@@ -64,7 +64,7 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen p-6 font-sans">
 
-  <!-- MODAL DE LOGIN COM SENHA -->
+  <!-- MODAL DE LOGIN COM SENHA (SOMENTE NO MODO ADMIN) -->
   <div id="loginModal" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
       <div class="text-4xl mb-3">🔒</div>
@@ -84,11 +84,11 @@
   <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-700 pb-4">
     <div>
       <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
-      <p class="text-xs text-slate-400 mt-1">Acompanhamento e sorteios de bilhetes em tempo real</p>
+      <p id="headerSubtitle" class="text-xs text-slate-400 mt-1">Acompanhamento de bilhetes em tempo real</p>
     </div>
     <div class="flex items-center gap-3" id="adminHeaderControls">
       <span id="statusBadge" class="px-3 py-1 bg-green-600 text-xs font-bold rounded-full uppercase">Status: Online</span>
-      <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
+      <button onclick="clearData()" id="btnClearData" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
     </div>
   </header>
 
@@ -98,7 +98,7 @@
       <div class="p-3 bg-amber-500/20 text-amber-400 rounded-lg text-3xl">🏆</div>
       <div>
         <h3 class="font-bold text-xs uppercase tracking-wider text-amber-400">Prêmio do Sorteio</h3>
-        <div id="prizeDisplay" class="text-2xl font-black text-amber-300 hidden">Nenhum prêmio definido</div>
+        <div id="prizeDisplay" class="text-2xl font-black text-amber-300">Nenhum prêmio definido</div>
       </div>
     </div>
     <div id="prizeInputContainer" class="flex items-center gap-2 w-full sm:w-auto">
@@ -106,13 +106,13 @@
     </div>
   </div>
 
-  <!-- CARD DO LINK PÚBLICO DOS PARTICIPANTES -->
+  <!-- CARD DO LINK PÚBLICO DOS PARTICIPANTES (OCULTO NO MODO VIEW) -->
   <div id="publicLinkCard" class="max-w-6xl mx-auto mb-6 bg-slate-800 border border-blue-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
     <div class="flex items-center gap-3">
       <div class="p-3 bg-blue-600/20 text-blue-400 rounded-lg text-2xl">🔗</div>
       <div>
         <h3 class="font-bold text-sm text-blue-300">Link Público para os Espectadores</h3>
-        <p class="text-xs text-slate-400">Envie este link na live para os participantes consultarem seus Números da Sorte sem pedir senha:</p>
+        <p class="text-xs text-slate-400">Envie este link na live para os participantes consultarem seus Números da Sorte sem poder editar nada:</p>
       </div>
     </div>
     <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -125,14 +125,13 @@
 
   <main class="max-w-6xl mx-auto grid grid-cols-1 gap-6">
 
-    <!-- SEÇÃO SUPERIOR: CONFIGURAÇÃO, ROLETA & FEED (OCULTA NO MODO PÚBLICO) -->
+    <!-- SEÇÃO CONTROLES E REGRAS (SOMENTE ADMIN) -->
     <section id="adminSection" class="w-full flex flex-col gap-6">
 
       <!-- CARD DE SORTEIO / ROLETA HORIZONTAL -->
       <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
         <h2 class="text-xl font-bold mb-4 text-yellow-400 flex items-center gap-2">🎰 Sorteio dos Números da Sorte</h2>
         
-        <!-- Roleta Horizontal -->
         <div class="roulette-container mb-6">
           <div class="roulette-pointer"></div>
           <div id="rouletteTrack" class="roulette-track">
@@ -149,11 +148,9 @@
 
       <!-- PAINEL DUPLO: CONFIGURAÇÕES E FEED DE PRESENTES -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- CARD DE REGRAS DE CONVERSÃO E LIMITE DE BILHETES -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
           <h2 class="text-lg font-bold mb-4 text-blue-400">⚙️ Regras e Configuração do Sorteio</h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Regra 1: Custo em Moedas -->
             <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
               <label class="text-xs text-slate-400 font-medium mb-1">1 Núm. da Sorte a cada:</label>
               <div class="flex items-center gap-2">
@@ -162,18 +159,16 @@
               </div>
             </div>
 
-            <!-- Regra 2: Limite Máximo de Bilhetes -->
             <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
               <label class="text-xs text-slate-400 font-medium mb-1">Máximo de Bilhetes no Sorteio:</label>
               <div class="flex items-center gap-2">
                 <input type="number" id="maxTicketsLimit" value="100000" min="1" max="100000" onchange="sendConfigUpdate()" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-28 text-center font-bold text-sm">
-                <span class="text-xs text-slate-400">(Máx. 100.000)</span>
+                <span class="text-xs text-slate-400">(Máx. 100k)</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- FEED DE PRESENTES -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
           <h2 class="text-lg font-bold mb-3 text-emerald-400">🎁 Últimos Presentes Recebidos</h2>
           <div id="giftFeed" class="space-y-2 max-h-48 overflow-y-auto pr-2 text-sm">
@@ -184,17 +179,17 @@
 
     </section>
 
-    <!-- SEÇÃO INFERIOR: TABELA DE PARTICIPANTES -->
+    <!-- TABELA DE PARTICIPANTES (EXIBIDA TANTO NO ADMIN QUANTO NO VIEW) -->
     <section id="tableSection" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col w-full">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
+          <h2 class="text-xl font-bold text-blue-400">👥 Participantes da Live</h2>
           <p id="ruleInfoText" class="text-xs text-slate-400 mt-0.5">Regra atual: 1 bilhete a cada <span id="currentCoinsRuleDisplay" class="text-blue-300 font-bold">1</span> moeda(s)</p>
         </div>
         <span id="totalTicketsCount" class="text-xs bg-blue-900 text-blue-200 px-2.5 py-1 rounded-full font-bold">Total Bilhetes: 0</span>
       </div>
 
-      <!-- CAMPO DE PESQUISA RÁPIDA -->
+      <!-- CAMPO DE BUSCA -->
       <div class="mb-4">
         <input type="text" id="searchInput" onkeyup="filterParticipants()" placeholder="🔍 Buscar seu @usuario..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
       </div>
@@ -239,7 +234,7 @@
   <script>
     const socket = io();
 
-    // CONFIGURAÇÃO DO FIREBASE WEB SDK (Substitua pelas suas credenciais do Firebase Console)
+    // CONFIGURAÇÃO DO FIREBASE WEB SDK
     const firebaseConfig = {
       apiKey: "SUA_API_KEY",
       authDomain: "seu-projeto.firebaseapp.com",
@@ -250,7 +245,6 @@
       appId: "1:1234567890:web:abcdef123456"
     };
 
-    // Inicializa o Firebase no cliente
     let db = null;
     if (firebaseConfig.apiKey !== "SUA_API_KEY") {
       firebase.initializeApp(firebaseConfig);
@@ -259,35 +253,9 @@
 
     const ADMIN_PASSWORD = "5879"; 
     let participants = {}; 
-    let availableTicketsPool = [];
-    let isSpinning = false;
     let currentConfig = { coinsPerTicket: 1, maxTicketsLimit: 100000 };
 
-    // Função de Embaralhamento Determinístico
-    function generateDeterminesticTicketsPool() {
-      const numbers = [];
-      for (let i = 1000; i < 101000; i++) {
-        numbers.push(i);
-      }
-      
-      // Shuffle determinístico simples usando Pseudo-Random com semente fixa
-      let seed = 12345;
-      function pseudoRandom() {
-        let x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-      }
-
-      for (let i = numbers.length - 1; i > 0; i--) {
-        const j = Math.floor(pseudoRandom() * (i + 1));
-        [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-      }
-
-      availableTicketsPool = numbers;
-    }
-
-    generateDeterminesticTicketsPool();
-
-    // Modo de visualização (Público vs Admin)
+    // Identifica se a URL contém ?view=public
     const urlParams = new URLSearchParams(window.location.search);
     const isPublicView = urlParams.get('view') === 'public';
 
@@ -298,7 +266,7 @@
         document.getElementById('loginModal').classList.add('hidden');
         sessionStorage.setItem('admin_authenticated', 'true');
       } else {
-        alert('Senha incorreta! Tente novamente.');
+        alert('Senha incorreta!');
       }
     }
 
@@ -307,39 +275,38 @@
       document.getElementById('publicUrlInput').value = publicUrl;
 
       if (isPublicView) {
+        // MODO SOMENTE LEITURA
         document.getElementById('loginModal').classList.add('hidden');
         document.getElementById('adminSection').style.display = 'none';
         document.getElementById('adminHeaderControls').style.display = 'none';
         document.getElementById('publicLinkCard').style.display = 'none';
         document.getElementById('prizeInputContainer').style.display = 'none';
-        document.getElementById('prizeDisplay').classList.remove('hidden');
+        document.getElementById('headerSubtitle').innerText = 'Modo de Consulta Pública (Somente Leitura)';
       } else if (sessionStorage.getItem('admin_authenticated') === 'true') {
         document.getElementById('loginModal').classList.add('hidden');
       }
 
-      // Conexão com Firebase para carregar primeiro a config e depois os participantes
+      // Escuta dados do Firebase
       if (db) {
+        // 1. Escuta a Regra Atual
         db.ref('config').on('value', (snapshot) => {
           const configData = snapshot.val();
           if (configData) {
-            applyConfigUpdate(configData);
+            applyConfig(configData);
           }
         });
 
+        // 2. Escuta a Lista de Participantes e seus Bilhetes
         db.ref('participants').on('value', (snapshot) => {
           const data = snapshot.val();
-          if (data) {
-            participants = data;
-            rebuildTicketsPoolAndAssign();
-          } else {
-            participants = {};
-            updateTable();
-          }
+          participants = data || {};
+          renderTable();
         });
 
+        // 3. Escuta o Prêmio
         db.ref('prize').on('value', (snapshot) => {
-          const prizeText = snapshot.val() || "";
-          document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
+          const prizeText = snapshot.val() || "Nenhum prêmio definido";
+          document.getElementById('prizeDisplay').innerText = prizeText;
           if (!isPublicView) {
             document.getElementById('prizeInput').value = prizeText;
           }
@@ -348,15 +315,16 @@
     });
 
     function sendConfigUpdate() {
+      if (isPublicView) return;
       const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket').value) || 1;
       const maxTicketsLimit = parseInt(document.getElementById('maxTicketsLimit').value) || 100000;
       
       const configData = { coinsPerTicket, maxTicketsLimit };
       socket.emit('updateConfig', configData);
-      applyConfigUpdate(configData);
+      applyConfig(configData);
     }
 
-    function applyConfigUpdate(configData) {
+    function applyConfig(configData) {
       currentConfig.coinsPerTicket = configData.coinsPerTicket || 1;
       currentConfig.maxTicketsLimit = configData.maxTicketsLimit || 100000;
 
@@ -367,34 +335,15 @@
         document.getElementById('maxTicketsLimit').value = currentConfig.maxTicketsLimit;
       }
 
-      rebuildTicketsPoolAndAssign();
+      renderTable();
     }
 
     socket.on('configUpdated', (configData) => {
-      applyConfigUpdate(configData);
+      applyConfig(configData);
     });
 
-    function rebuildTicketsPoolAndAssign() {
-      generateDeterminesticTicketsPool();
-      const coinsPerTicket = currentConfig.coinsPerTicket || 1;
-      
-      // Ordena usernames para garantir atribuição idêntica em ambos os painéis
-      const sortedUsernames = Object.keys(participants).sort();
-
-      sortedUsernames.forEach(username => {
-        const userCoins = participants[username].coins || 0;
-        const targetTicketsCount = Math.floor(userCoins / coinsPerTicket);
-        participants[username].tickets = [];
-        
-        while (participants[username].tickets.length < targetTicketsCount && availableTicketsPool.length > 0) {
-          participants[username].tickets.push(availableTicketsPool.pop());
-        }
-      });
-
-      updateTable();
-    }
-
     function updatePrize() {
+      if (isPublicView) return;
       const prizeText = document.getElementById('prizeInput').value;
       socket.emit('updatePrize', prizeText);
     }
@@ -413,67 +362,39 @@
       
       const btn = document.getElementById('btnCopy');
       btn.innerText = 'Copiado! ✅';
-      btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
-      btn.classList.add('bg-green-600');
-
-      setTimeout(() => {
-        btn.innerText = 'Copiar Link';
-        btn.classList.remove('bg-green-600');
-        btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
-      }, 2000);
+      setTimeout(() => { btn.innerText = 'Copiar Link'; }, 2000);
     }
 
-    socket.on('giftReceived', (data) => {
-      addGiftToFeed(data.username, data.coins);
-      if (!db) {
-        registerContribution(data.username, data.coins);
-      }
-    });
-
-    socket.on('clearDataReceived', () => {
-      resetLocalData();
-    });
-
-    function addGiftToFeed(username, coins) {
-      if (isPublicView) return;
-      const feed = document.getElementById('giftFeed');
-      if (feed.children[0] && feed.children[0].tagName === 'P') {
-        feed.innerHTML = '';
-      }
-      const item = document.createElement('div');
-      item.className = 'bg-slate-900 p-2.5 rounded border-l-4 border-emerald-500 flex justify-between items-center';
-      item.innerHTML = `
-        <span class="font-bold text-slate-200">@${username}</span>
-        <span class="text-emerald-400 font-extrabold">+${coins} moeda(s)</span>
-      `;
-      feed.prepend(item);
-    }
-
-    function registerContribution(username, coins) {
-      if (!participants[username]) {
-        participants[username] = { coins: 0, tickets: [] };
-      }
-
-      participants[username].coins += Number(coins);
-      rebuildTicketsPoolAndAssign();
-    }
-
-    function updateTable() {
+    // Renderiza a tabela de maneira exatamente idêntica em ambos os painéis
+    function renderTable() {
       const tbody = document.getElementById('participantsTable');
       tbody.innerHTML = '';
 
       let totalTickets = 0;
-      const keys = Object.keys(participants);
+      const usernames = Object.keys(participants).sort();
 
-      if (keys.length === 0) {
+      if (usernames.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td></tr>';
         document.getElementById('totalTicketsCount').innerText = 'Total Bilhetes: 0';
         return;
       }
 
-      keys.forEach(username => {
+      const coinsPerTicket = currentConfig.coinsPerTicket || 1;
+
+      usernames.forEach(username => {
         const data = participants[username];
-        const userTickets = data.tickets || [];
+        const coins = data.coins || 0;
+        
+        // Se houver bilhetes pré-calculados no Firebase usa-os; caso contrário calcula baseado nas moedas
+        let userTickets = data.tickets || [];
+        
+        // Calcula a quantidade exata de bilhetes com base na regra ativa
+        const expectedCount = Math.floor(coins / coinsPerTicket);
+        
+        if (userTickets.length > expectedCount) {
+          userTickets = userTickets.slice(0, expectedCount);
+        }
+
         totalTickets += userTickets.length;
 
         const sortedTickets = [...userTickets].sort((a, b) => a - b);
@@ -486,7 +407,7 @@
         tr.setAttribute('data-username', username.toLowerCase());
         tr.innerHTML = `
           <td class="p-3 font-bold text-slate-200">@${username}</td>
-          <td class="p-3 text-center text-slate-400">${data.coins || 0}</td>
+          <td class="p-3 text-center text-slate-400">${coins}</td>
           <td class="p-3">${numbersHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -506,105 +427,10 @@
       });
     }
 
-    // ROLETA DE SORTEIO (10s)
-    function startDraw() {
-      if (isSpinning || isPublicView) return;
-
-      let maxLimit = currentConfig.maxTicketsLimit || 100000;
-      if (maxLimit > 100000) maxLimit = 100000;
-
-      let allTickets = [];
-      Object.keys(participants).forEach(username => {
-        const tickets = participants[username].tickets || [];
-        tickets.forEach(ticketNum => {
-          allTickets.push({ number: ticketNum, username: username });
-        });
-      });
-
-      if (allTickets.length === 0) {
-        alert('Não há Números da Sorte para realizar o sorteio!');
-        return;
-      }
-
-      let poolForDraw = [...allTickets];
-      if (poolForDraw.length > maxLimit) {
-        poolForDraw = poolForDraw.slice(0, maxLimit);
-      }
-
-      isSpinning = true;
-      document.getElementById('btnDraw').disabled = true;
-
-      const winnerIndex = Math.floor(Math.random() * poolForDraw.length);
-      const winningTicket = poolForDraw[winnerIndex];
-
-      const track = document.getElementById('rouletteTrack');
-      track.style.transition = 'none';
-      track.style.transform = 'translateX(0px)';
-      track.innerHTML = '';
-
-      const totalCards = 110;
-      const targetCardIndex = 100;
-
-      for (let i = 0; i < totalCards; i++) {
-        const card = document.createElement('div');
-        card.className = 'roulette-card';
-        
-        let cardData = (i === targetCardIndex) ? winningTicket : poolForDraw[Math.floor(Math.random() * poolForDraw.length)];
-        
-        card.innerHTML = `
-          <span class="text-xl font-black text-yellow-400">#${cardData.number}</span>
-          <span class="text-xs text-slate-300 truncate max-w-[120px]">@${cardData.username}</span>
-        `;
-        track.appendChild(card);
-      }
-
-      const totalDuration = 10;
-      const cardWidth = 156;
-      const containerWidth = document.querySelector('.roulette-container').offsetWidth;
-      const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
-
-      setTimeout(() => {
-        track.style.transition = `transform ${totalDuration}s cubic-bezier(0.1, 0.9, 0.1, 1)`;
-        track.style.transform = `translateX(-${stopPosition}px)`;
-      }, 50);
-
-      setTimeout(() => {
-        showWinner(winningTicket);
-        isSpinning = false;
-        document.getElementById('btnDraw').disabled = false;
-      }, (totalDuration * 1000) + 300);
-    }
-
-    function showWinner(ticket) {
-      document.getElementById('winnerNumber').innerText = `#${ticket.number}`;
-      document.getElementById('winnerName').innerText = `@${ticket.username}`;
-      document.getElementById('winnerModal').classList.remove('hidden');
-
-      confetti({
-        particleCount: 150,
-        spread: 90,
-        origin: { y: 0.6 }
-      });
-    }
-
-    function closeWinnerModal() {
-      document.getElementById('winnerModal').classList.add('hidden');
-    }
-
     function clearData() {
-      if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte para TODOS os participantes?')) {
+      if (isPublicView) return;
+      if (confirm('Tem certeza que deseja zerar a rifa?')) {
         socket.emit('clearData');
-        resetLocalData();
-      }
-    }
-
-    function resetLocalData() {
-      participants = {};
-      generateDeterminesticTicketsPool();
-      updateTable();
-      if (!isPublicView) {
-        document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
-        document.getElementById('rouletteTrack').innerHTML = '<div class="roulette-card">Aguardando...</div>';
       }
     }
   </script>
