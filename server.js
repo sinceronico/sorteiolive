@@ -47,23 +47,30 @@ try {
   console.error('❌ Erro ao inicializar o Firebase Admin:', error.message);
 }
 
-// Servir arquivos estáticos (HTML, CSS, JS)
+// Servir arquivos estáticos da pasta public
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+// Rota explícita para garantir a entrega da página principal
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // ==========================================
-// ROTAS PARA WEBHOOK / TIKFINITY
+// FUNÇÃO PROCESSADORA DE PRESENTES
 // ==========================================
-app.post('/webhook-gift', async (req, res) => {
+async function processGift(username, coins, res) {
+  if (!username || !coins) {
+    return res.status(400).json({ error: 'Username e coins são obrigatórios.' });
+  }
+
+  const numericCoins = Number(coins);
+
+  if (isNaN(numericCoins) || numericCoins <= 0) {
+    return res.status(400).json({ error: 'Quantidade de coins inválida.' });
+  }
+
   try {
-    const { username, coins } = req.body;
-
-    if (!username || !coins) {
-      return res.status(400).json({ error: 'Username e coins são obrigatórios.' });
-    }
-
-    const numericCoins = Number(coins);
-
     // Salva no Firebase se configurado
     if (participantsRef) {
       const sanitizedUser = username.replace(/[.#$\[\]]/g, "_");
@@ -82,11 +89,29 @@ app.post('/webhook-gift', async (req, res) => {
     // Emite o evento em tempo real via Socket.IO para o Painel
     io.emit('giftReceived', { username, coins: numericCoins });
 
-    return res.status(200).json({ status: 'sucesso', username, coins: numericCoins });
+    console.log(`🎁 Presente recebido de @${username}: ${numericCoins} moeda(s)`);
+    return res.status(200).send(`OK: ${username} +${numericCoins} coins`);
   } catch (err) {
-    console.error('Erro no webhook-gift:', err);
+    console.error('Erro ao processar presente:', err);
     return res.status(500).json({ error: 'Erro interno no servidor' });
   }
+}
+
+// ==========================================
+// ROTAS PARA WEBHOOK TIKFINITY
+// ==========================================
+
+// Rota antiga via POST em formato JSON
+app.post('/webhook-gift', (req, res) => {
+  const { username, coins } = req.body;
+  processGift(username, coins, res);
+});
+
+// Rota dedicada para o TikFinity com suporte a GET (URL Query Parameters) e POST
+app.all('/webhook/tikfinity', (req, res) => {
+  const username = req.query.username || req.body.username;
+  const coins = req.query.coins || req.body.coins;
+  processGift(username, coins, res);
 });
 
 // ==========================================
@@ -95,7 +120,6 @@ app.post('/webhook-gift', async (req, res) => {
 io.on('connection', (socket) => {
   console.log('🟢 Novo cliente conectado ao painel:', socket.id);
 
-  // Atualizar Prêmio
   socket.on('updatePrize', async (prizeText) => {
     if (prizeRef) {
       await prizeRef.set(prizeText);
@@ -103,7 +127,6 @@ io.on('connection', (socket) => {
     io.emit('prizeUpdated', prizeText);
   });
 
-  // Zerar Rifa
   socket.on('clearData', async () => {
     if (participantsRef) {
       await participantsRef.remove();
