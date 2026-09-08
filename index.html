@@ -1,237 +1,94 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Acompanhamento do Sorteio - Tempo Real</title>
-  <style>
-    :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --accent-color: #00f2fe;
-      --text-color: #f8fafc;
-    }
+const socket = io();
 
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-    }
+const ADMIN_PASSWORD = "1234"; 
+let participants = {}; 
+let isSpinning = false;
 
-    .container {
-      width: 100%;
-      max-width: 900px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+const urlParams = new URLSearchParams(window.location.search);
+const isPublicView = urlParams.get('view') === 'public';
 
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-
-    .header-prize {
-      text-align: center;
-      border: 2px solid var(--accent-color);
-    }
-
-    .header-prize h1 {
-      margin: 0 0 5px 0;
-      font-size: 1.2rem;
-      color: #94a3b8;
-    }
-
-    .prize-title {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: #fff;
-    }
-
-    .stats-bar {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      text-align: center;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-
-    .stat-box h4 {
-      margin: 0;
-      color: #94a3b8;
-      font-size: 0.9rem;
-    }
-
-    .stat-box span {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: var(--accent-color);
-    }
-
-    .table-container {
-      max-height: 500px;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th, td {
-      padding: 12px;
-      border-bottom: 1px solid #334155;
-    }
-
-    th {
-      background-color: #0f172a;
-      color: var(--accent-color);
-      position: sticky;
-      top: 0;
-    }
-
-    .ticket-badge {
-      display: inline-block;
-      background: #38bdf8;
-      color: #0f172a;
-      font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 0.95rem;
-      margin: 2px;
-    }
-
-    .no-ticket-badge {
-      color: #64748b;
-      font-size: 0.85rem;
-      font-style: italic;
-    }
-  </style>
-</head>
-<body>
-
-<div class="container">
-
-  <div class="card header-prize">
-    <h1 id="streamerTitle">🎁 PRÊMIO EM DISPUTA</h1>
-    <div class="prize-title" id="displayPrize">Carregando...</div>
-  </div>
-
-  <div class="card stats-bar">
-    <div class="stat-box">
-      <h4>Mínimo p/ Número</h4>
-      <span id="displayTargetCoins">30</span> moedas
-    </div>
-    <div class="stat-box">
-      <h4>Total de Doadores</h4>
-      <span id="displayParticipants">0</span>
-    </div>
-    <div class="stat-box">
-      <h4>Bilhetes Emitidos</h4>
-      <span id="displayTotalTickets">0</span> / 1000
-    </div>
-  </div>
-
-  <div class="card">
-    <h3 style="margin: 0 0 10px 0;">📊 Relação de Participantes em Tempo Real</h3>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Usuário</th>
-            <th>Moedas Doadas</th>
-            <th>Qtd. Bilhetes</th>
-            <th>Números da Sorte</th>
-          </tr>
-        </thead>
-        <tbody id="participantsTable">
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-</div>
-
-<!-- MÓDULOS DO FIREBASE -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDjJrfEOnwA-y7TGlNUxJ1v3AoU2mdqqwo",
-    authDomain: "sorteiolive-ec896.firebaseapp.com",
-    projectId: "sorteiolive-ec896",
-    storageBucket: "sorteiolive-ec896.firebasestorage.app",
-    messagingSenderId: "418542817743",
-    appId: "1:418542817743:web:2cd9fdba8b1151b7bcc2ba",
-    measurementId: "G-40EZ2GJY4V"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getFirestore(app);
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const targetUser = (urlParams.get('user') || 'sinceronico').toLowerCase().replace('@', '');
-
-  document.getElementById('streamerTitle').innerText = `🎁 PRÊMIO EM DISPUTA (@${targetUser})`;
+// Ouve as atualizações globais vindas do servidor/Firebase
+socket.on('stateUpdated', (state) => {
+  participants = state.participants || {};
   
-  const raffleDocRef = doc(db, "sorteios", targetUser);
+  // Atualiza o valor do prêmio
+  document.getElementById('prizeDisplay').innerText = state.prize || "Nenhum prêmio definido";
+  if (!isPublicView) {
+    document.getElementById('prizeInput').value = state.prize || "";
+    document.getElementById('coinsPerTicket').value = state.coinsPerTicket || 1;
+  }
 
-  onSnapshot(raffleDocRef, (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      const targetCoins = data.targetCoins || 30;
-      const participants = data.participants || [];
-      const allIssuedTickets = data.allIssuedTickets || [];
-      const prizeInput = data.prizeInput || 'Consulte a live';
+  updateTable();
+});
 
-      document.getElementById('displayPrize').innerText = prizeInput;
-      document.getElementById('displayTargetCoins').innerText = targetCoins;
-      document.getElementById('displayParticipants').innerText = participants.length;
-      document.getElementById('displayTotalTickets').innerText = allIssuedTickets.length;
+function updatePrize() {
+  const prizeText = document.getElementById('prizeInput').value;
+  socket.emit('updatePrize', prizeText);
+}
 
-      const tbody = document.getElementById('participantsTable');
-      tbody.innerHTML = '';
+// Envia a atualização do custo de bilhetes para o servidor
+document.getElementById('coinsPerTicket')?.addEventListener('change', (e) => {
+  socket.emit('updateCoinsPerTicket', e.target.value);
+});
 
-      participants.forEach((p, index) => {
-        const tr = document.createElement('tr');
-        const sortedTickets = [...p.tickets].sort((a, b) => a - b);
-        
-        const ticketsHTML = sortedTickets.length > 0 
-          ? sortedTickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
-          : `<span class="no-ticket-badge">Aguardando valor mínimo (${p.totalCoins}/${targetCoins})</span>`;
+function clearData() {
+  if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte para TODOS os participantes?')) {
+    socket.emit('clearData');
+  }
+}
 
-        tr.innerHTML = `
-          <td><strong>${index + 1}</strong></td>
-          <td><strong>@${p.username}</strong></td>
-          <td>${p.totalCoins} moedas</td>
-          <td><strong>${p.tickets.length}</strong></td>
-          <td>${ticketsHTML}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } else {
-      document.getElementById('displayPrize').innerText = "Aguardando o streamer iniciar o sorteio...";
-    }
+socket.on('giftReceived', (data) => {
+  addGiftToFeed(data.username, data.coins);
+});
+
+function addGiftToFeed(username, coins) {
+  if (isPublicView) return;
+  const feed = document.getElementById('giftFeed');
+  if (feed.children[0] && feed.children[0].tagName === 'P') {
+    feed.innerHTML = '';
+  }
+  const item = document.createElement('div');
+  item.className = 'bg-slate-900 p-2.5 rounded border-l-4 border-emerald-500 flex justify-between items-center';
+  item.innerHTML = `
+    <span class="font-bold text-slate-200">@${username}</span>
+    <span class="text-emerald-400 font-extrabold">+${coins} moeda(s)</span>
+  `;
+  feed.prepend(item);
+}
+
+function updateTable() {
+  const tbody = document.getElementById('participantsTable');
+  tbody.innerHTML = '';
+
+  let totalTickets = 0;
+  const keys = Object.keys(participants);
+
+  if (keys.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td></tr>';
+    document.getElementById('totalTicketsCount').innerText = 'Total Bilhetes: 0';
+    return;
+  }
+
+  keys.forEach(username => {
+    const data = participants[username];
+    totalTickets += data.tickets.length;
+
+    const sortedTickets = [...data.tickets].sort((a, b) => a - b);
+    const numbersHtml = sortedTickets.length > 0 
+      ? sortedTickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
+      : '<span class="text-slate-500 text-xs italic">Sem números</span>';
+
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-700/50 transition participant-row';
+    tr.setAttribute('data-username', username.toLowerCase());
+    tr.innerHTML = `
+      <td class="p-3 font-bold text-slate-200">@${username}</td>
+      <td class="p-3 text-center text-slate-400">${data.coins}</td>
+      <td class="p-3">${numbersHtml}</td>
+    `;
+    tbody.appendChild(tr);
   });
 
-  function formatTicketNumber(num) {
-    return '#' + num.toString().padStart(4, '0');
-  }
-</script>
-
-</body>
-</html>
+  document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
+  filterParticipants();
+}
