@@ -19,6 +19,7 @@ const io = new Server(server, {
 let db = null;
 let participantsRef = null;
 let prizeRef = null;
+let configRef = null;
 
 try {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -39,6 +40,7 @@ try {
     db = admin.database();
     participantsRef = db.ref('participants');
     prizeRef = db.ref('prize');
+    configRef = db.ref('config');
     console.log('✅ Firebase Admin inicializado com sucesso.');
   } else {
     console.warn('⚠️ Variáveis de ambiente do Firebase ausentes no Render. Rodando em modo local/temporário.');
@@ -86,7 +88,7 @@ async function processGift(username, coins, res) {
       });
     }
 
-    // Emite o evento em tempo real via Socket.IO para o Painel
+    // Emite o evento em tempo real via Socket.IO para os Painéis (Admin e Público)
     io.emit('giftReceived', { username, coins: numericCoins });
 
     console.log(`🎁 Presente recebido de @${username}: ${numericCoins} moeda(s)`);
@@ -120,6 +122,7 @@ app.all('/webhook/tikfinity', (req, res) => {
 io.on('connection', (socket) => {
   console.log('🟢 Novo cliente conectado ao painel:', socket.id);
 
+  // Atualizar Prêmio
   socket.on('updatePrize', async (prizeText) => {
     if (prizeRef) {
       await prizeRef.set(prizeText);
@@ -127,6 +130,15 @@ io.on('connection', (socket) => {
     io.emit('prizeUpdated', prizeText);
   });
 
+  // Atualizar Configurações do Sorteio (Moedas por Bilhete e Limite)
+  socket.on('updateConfig', async (configData) => {
+    if (configRef) {
+      await configRef.set(configData);
+    }
+    io.emit('configUpdated', configData);
+  });
+
+  // Zerar Rifa
   socket.on('clearData', async () => {
     if (participantsRef) {
       await participantsRef.remove();
