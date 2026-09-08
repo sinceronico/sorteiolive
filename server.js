@@ -1,7 +1,10 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { WebcastPushConnection } = require('tiktok-live-connector');
+const TikTokLiveConnector = require('tiktok-live-connector');
+
+// Correção da importação da classe WebcastPushConnection para compatibilidade
+const WebcastPushConnection = TikTokLiveConnector.WebcastPushConnection || TikTokLiveConnector;
 
 // 1. Inicializa o App Express
 const app = express();
@@ -48,7 +51,7 @@ const handleTikfinityWebhook = (req, res) => {
   res.status(200).send({ success: true });
 };
 
-// Aceita requisições HTTP GET e POST do TikFinity
+// Suporte para requisições HTTP GET e POST do TikFinity
 app.post('/webhook/tikfinity', handleTikfinityWebhook);
 app.get('/webhook/tikfinity', handleTikfinityWebhook);
 
@@ -86,7 +89,7 @@ io.on('connection', (socket) => {
       socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar' });
     });
 
-    // Escuta presentes do tiktok-live-connector
+    // Escuta presentes do tiktok-live-connector (fallback/conexão direta)
     tiktokLiveConnection.on('gift', data => {
       if (data.giftType === 1 && data.repeatEnd === false) {
         return; // Ignora se for combo incompleto
