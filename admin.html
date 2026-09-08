@@ -3,728 +3,228 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel do Streamer - Controle de Sorteio</title>
+  <title>Painel Admin - Conexão Live TikTok</title>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <style>
-    :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --accent-color: #00f2fe;
-      --text-color: #f8fafc;
-      --danger-color: #ef4444;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .login-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: var(--bg-color);
+      background-color: #0f172a;
+      color: #f8fafc;
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 9999;
-    }
-
-    .login-card {
-      background: var(--card-bg);
-      padding: 30px;
-      border-radius: 12px;
-      border: 2px solid var(--accent-color);
-      text-align: center;
-      box-shadow: 0 0 30px rgba(0, 242, 254, 0.2);
-      max-width: 350px;
-      width: 90%;
-    }
-
-    .login-card input {
-      width: 80%;
-      padding: 10px;
-      margin: 15px 0;
-      border-radius: 6px;
-      border: 1px solid #334155;
-      background: #0f172a;
-      color: #fff;
-      font-size: 1.1rem;
-      text-align: center;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 950px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    #statusServer {
-      text-align: center;
-      padding: 12px;
-      background: #334155;
-      color: #fff;
-      font-weight: bold;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      transition: background 0.3s ease;
+      min-height: 100vh;
+      padding: 20px;
     }
 
     .card {
-      background: var(--card-bg);
+      background-color: #1e293b;
+      border: 1px solid #334155;
       border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     }
 
-    .header-prize {
+    h2 {
+      margin-bottom: 20px;
+      font-size: 1.4rem;
+      color: #38bdf8;
       text-align: center;
-      border: 2px solid var(--accent-color);
     }
 
-    .header-prize h1 {
-      margin: 0 0 10px 0;
-      font-size: 1.3rem;
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.875rem;
       color: #94a3b8;
     }
 
-    .editable-input {
-      background: transparent;
-      border: none;
-      border-bottom: 2px dashed var(--accent-color);
-      color: #fff;
-      font-size: 1.8rem;
-      font-weight: bold;
-      text-align: center;
+    input[type="text"] {
       width: 100%;
-      outline: none;
-    }
-
-    .tiktok-connection-box {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      align-items: center;
-      margin-top: 10px;
-      flex-wrap: wrap;
-    }
-
-    .tiktok-connection-box input {
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #334155;
-      background: #0f172a;
-      color: #00f2fe;
-      font-size: 1.1rem;
-      font-weight: bold;
-      text-align: center;
-    }
-
-    .timer-section {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-
-    .timer-display {
-      font-size: 2.2rem;
-      font-weight: bold;
-      color: var(--accent-color);
-    }
-
-    .raffle-display-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-      border: 2px solid #334155;
-      padding: 30px;
-      border-radius: 16px;
-      text-align: center;
-    }
-
-    .digital-counter {
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 4.5rem;
-      font-weight: 900;
-      color: #00f2fe;
-      background: #020617;
-      padding: 15px 40px;
-      border-radius: 12px;
-      border: 2px solid var(--accent-color);
-      box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
-      letter-spacing: 4px;
-      margin: 15px 0;
-      min-width: 220px;
-    }
-
-    .table-container {
-      max-height: 300px;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th, td {
-      padding: 12px;
-      border-bottom: 1px solid #334155;
-    }
-
-    th {
+      padding: 10px 14px;
       background-color: #0f172a;
-      color: var(--accent-color);
-      position: sticky;
-      top: 0;
-    }
-
-    .ticket-badge {
-      display: inline-block;
-      background: #38bdf8;
-      color: #0f172a;
-      font-weight: bold;
-      padding: 4px 10px;
+      border: 1px solid #475569;
       border-radius: 6px;
-      font-family: monospace;
-      font-size: 1rem;
-      margin: 2px;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
     }
 
-    .no-ticket-badge {
-      color: #64748b;
-      font-size: 0.85rem;
-      font-style: italic;
+    input[type="text"]:focus {
+      border-color: #38bdf8;
     }
 
     .btn {
-      background: var(--accent-color);
+      width: 100%;
+      padding: 12px;
+      background-color: #0284c7;
+      color: white;
       border: none;
-      color: #000;
-      padding: 10px 18px;
-      font-weight: bold;
       border-radius: 6px;
+      font-weight: bold;
+      font-size: 1rem;
       cursor: pointer;
+      transition: background 0.2s;
     }
 
     .btn:hover {
-      opacity: 0.9;
+      background-color: #0369a1;
     }
 
-    .btn-danger {
-      background: var(--danger-color);
-      color: #fff;
-    }
-
-    .btn-sim {
-      background: #a855f7;
-      color: #fff;
-    }
-
-    .actions-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 15px;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.85);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-card {
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      border: 3px solid var(--accent-color);
-      border-radius: 20px;
-      padding: 40px;
+    .status-badge {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 6px;
       text-align: center;
-      box-shadow: 0 0 50px rgba(0, 242, 254, 0.6);
-      transform: scale(0.7);
-      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      max-width: 90%;
+      font-weight: 600;
+      font-size: 0.9rem;
+      background-color: #334155;
+      color: #cbd5e1;
     }
 
-    .modal-overlay.active .modal-card {
-      transform: scale(1);
+    .status-badge.connected {
+      background-color: #065f46;
+      color: #34d399;
     }
 
-    .winner-title {
-      font-size: 1.5rem;
-      color: #94a3b8;
-      margin-bottom: 5px;
+    .status-badge.error {
+      background-color: #881337;
+      color: #f87171;
     }
 
-    .winner-ticket-highlight {
-      font-size: 2rem;
-      color: #eab308;
-      font-weight: bold;
+    .gift-log {
+      margin-top: 20px;
+      background-color: #0f172a;
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.85rem;
     }
 
-    .winner-name {
-      font-size: 3.5rem;
-      font-weight: 900;
-      color: #00f2fe;
-      text-shadow: 0 0 20px rgba(0, 242, 254, 0.8);
-      margin: 15px 0;
-      word-break: break-word;
-    }
-
-    .winner-prize {
-      font-size: 1.3rem;
-      color: #f8fafc;
-      background: #334155;
-      padding: 10px 20px;
-      border-radius: 8px;
-      display: inline-block;
-      margin-bottom: 25px;
+    .gift-item {
+      padding: 6px 0;
+      border-bottom: 1px solid #1e293b;
+      color: #fbbf24;
     }
   </style>
 </head>
 <body>
 
-<div class="login-overlay" id="loginScreen">
-  <div class="login-card">
-    <h2 style="margin-top: 0; color: #00f2fe;">🔒 Área Restrita</h2>
-    <p style="color: #94a3b8; font-size: 0.9rem;">Insira a senha do administrador para acessar o painel:</p>
-    <input type="password" id="passInput" placeholder="Sua senha aqui" onkeypress="if(event.key==='Enter') verifyPass()">
-    <br>
-    <button class="btn" onclick="verifyPass()" style="width: 85%;">ACESSAR PAINEL</button>
-  </div>
-</div>
-
-<div class="container">
-
-  <div class="card" style="text-align: center;">
-    <h3 style="margin: 0 0 10px 0;">🔴 Conexão com a Live do TikTok</h3>
-    <div class="tiktok-connection-box">
-      <input type="text" id="tiktokUsernameInput" value="@sinceronico" placeholder="@seu_usuario_tiktok">
-      <button class="btn" onclick="connectTikTok()">ALTERAR / CONECTAR LIVE</button>
-    </div>
-    <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #94a3b8;">
-      Link público para os espectadores: <strong id="publicLinkDisplay" style="color: #00f2fe;">Carregando...</strong>
-    </p>
-  </div>
-
-  <div id="statusServer">
-    ⚪ Conectando ao servidor...
-  </div>
-
-  <div class="card header-prize">
-    <h1>🎁 PRÊMIO DO SORTEIO</h1>
-    <input type="text" id="prizeInput" class="editable-input" value="1x Skin Lendária / PIX R$ 50" onkeyup="saveDataToFirebase()">
-  </div>
-
-  <div class="card timer-section">
-    <div>
-      <label><strong>Duração do Sorteio (Minutos):</strong> </label>
-      <input type="number" id="timerMinutes" value="10" style="width: 60px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
-      <button class="btn" onclick="startTimer()">Iniciar Cronômetro</button>
-    </div>
-    <div>
-      <span>Tempo Restante:</span>
-      <div id="timerDisplay" class="timer-display">10:00</div>
-    </div>
-  </div>
-
   <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-      <div>
-        <h3 style="margin: 0;">🪙 Cota Mínima para Número da Sorte</h3>
-        <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Acumular este valor gera bilhetes aleatórios (1 a 1000).</p>
-      </div>
-      <div>
-        <label><strong>Moedas Mínimas por Bilhete:</strong> </label>
-        <input type="number" id="targetCoinsInput" value="30" onchange="updateGoal()" style="width: 70px; padding: 6px; font-size: 1rem; border-radius: 4px; border: 1px solid #334155;">
-      </div>
+    <h2>📡 Conexão TikTok Live</h2>
+
+    <div class="form-group">
+      <label for="streamerInput">Usuário do TikTok (@):</label>
+      <input type="text" id="streamerInput" placeholder="Ex: gabriellymntro">
+    </div>
+
+    <div class="form-group">
+      <label for="sessionIdInput">TikTok Session ID (Evita bloqueios):</label>
+      <input type="text" id="sessionIdInput" placeholder="Cole seu sessionid dos cookies do TikTok...">
+    </div>
+
+    <button class="btn" onclick="connectLive()">Conectar Live</button>
+
+    <div id="statusBox" class="status-badge">Desconectado</div>
+
+    <h3 style="margin-top: 20px; font-size: 1rem; color: #94a3b8;">🎁 Presentes Recebidos:</h3>
+    <div id="giftLog" class="gift-log">
+      <div style="color: #64748b;">Nenhum presente recebido ainda.</div>
     </div>
   </div>
 
-  <div class="card raffle-display-section">
-    <h3 style="margin: 0; color: #94a3b8;">🎰 SORTEADOR DIGITAL (POOL 1-1000)</h3>
-    <div class="digital-counter" id="digitalCounter">#0000</div>
-    <p style="color: #64748b; margin: 0;">Bilhetes Emitidos: <strong id="totalTicketsCount" style="color: #00f2fe;">0</strong> / 1000 | Disponíveis: <strong id="availableTicketsCount" style="color: #22c55e;">1000</strong></p>
-  </div>
+  <script>
+    // ALTERE AQUI PARA A URL DO SEU BACKEND NO RENDER
+    const RENDER_URL = 'https://sorteio-backend-live.onrender.com'; 
 
-  <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h3>🎟️ Relação de Doadores (<span id="totalParticipants">0</span>)</h3>
-      <button class="btn btn-danger" onclick="clearList()">Limpar Todos os Dados</button>
-    </div>
+    const socket = io(RENDER_URL);
 
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Usuário do TikTok</th>
-            <th>Moedas Doadas</th>
-            <th>Qtd. Bilhetes</th>
-            <th>Números da Sorte (Aleatórios)</th>
-          </tr>
-        </thead>
-        <tbody id="participantsTable">
-        </tbody>
-      </table>
-    </div>
+    // Carrega o Session ID salvo previamente no navegador
+    window.onload = () => {
+      const savedSession = localStorage.getItem('tiktok_session_id');
+      if (savedSession) {
+        document.getElementById('sessionIdInput').value = savedSession;
+      }
+    };
 
-    <div class="actions-bar">
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn btn-sim" onclick="simulateGift(1)">⚡ Simular +1 Moeda</button>
-        <button class="btn btn-sim" onclick="simulateGift(10)">🚀 Simular +10 Moedas</button>
-        <button class="btn btn-sim" onclick="simulateGift(30)">🔥 Simular +30 Moedas</button>
-      </div>
-      <button class="btn" id="drawBtn" onclick="startDrawAnimation()" style="background: #22c55e; color: #fff; font-size: 1.15rem; padding: 12px 24px;">🎲 SORTEAR NÚMERO!</button>
-    </div>
-  </div>
+    function connectLive() {
+      const username = document.getElementById('streamerInput').value.trim();
+      const sessionId = document.getElementById('sessionIdInput').value.trim();
 
-</div>
+      if (!username) {
+        alert('Por favor, informe o usuário do TikTok.');
+        return;
+      }
 
-<div class="modal-overlay" id="winnerModal">
-  <div class="modal-card">
-    <div class="winner-title">🎉 GRANDE GANHADOR DO SORTEIO!</div>
-    <div class="winner-ticket-highlight" id="modalWinnerTicket">NÚMERO #0000</div>
-    <div class="winner-name" id="winnerName">@usuario</div>
-    <div class="winner-prize" id="winnerPrize">Prêmio: Skin Lendária</div>
-    <br>
-    <button class="btn" onclick="closeModal()" style="font-size: 1.1rem; padding: 12px 30px;">FECHAR</button>
-  </div>
-</div>
-
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
-<!-- MÓDULOS DO FIREBASE -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDjJrfEOnwA-y7TGlNUxJ1v3AoU2mdqqwo",
-    authDomain: "sorteiolive-ec896.firebaseapp.com",
-    projectId: "sorteiolive-ec896",
-    storageBucket: "sorteiolive-ec896.firebasestorage.app",
-    messagingSenderId: "418542817743",
-    appId: "1:418542817743:web:2cd9fdba8b1151b7bcc2ba",
-    measurementId: "G-40EZ2GJY4V"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getFirestore(app);
-
-  const SENHA_MEU_PAINEL = "5879";
-
-  window.verifyPass = function() {
-    const entered = document.getElementById('passInput').value;
-    if (entered === SENHA_MEU_PAINEL) {
-      document.getElementById('loginScreen').style.display = 'none';
-      sessionStorage.setItem('admin_auth', 'true');
-    } else {
-      alert("Senha incorreta!");
-    }
-  };
-
-  if (sessionStorage.getItem('admin_auth') === 'true') {
-    document.getElementById('loginScreen').style.display = 'none';
-  }
-
-  const DEFAULT_STREAMER = 'sinceronico';
-  let currentStreamer = localStorage.getItem('tiktok_username') || DEFAULT_STREAMER;
-  document.getElementById('tiktokUsernameInput').value = '@' + currentStreamer;
-
-  let raffleDocRef = null;
-  let unsubscribeFirebase = null;
-
-  let targetCoins = 30;
-  let timerInterval = null;
-  let isDrawing = false;
-  
-  let availablePool = [];
-  let participants = [];
-  let allIssuedTickets = [];
-
-  const RENDER_URL = 'https://sorteio-backend-live.onrender.com';
-  const socket = io(RENDER_URL, {
-    transports: ['websocket', 'polling']
-  });
-
-  const statusEl = document.getElementById('statusServer');
-
-  socket.on('connect', () => {
-    statusEl.style.background = '#eab308';
-    statusEl.innerText = `🟡 Conectado ao Servidor. Requisitando live de @${currentStreamer}...`;
-    initStreamer(currentStreamer);
-  });
-
-  socket.on('statusUpdate', (data) => {
-    if (data.status === 'connected') {
-      statusEl.style.background = '#22c55e';
-      statusEl.innerText = `🟢 CONECTADO AO VIVO COM A LIVE DE: @${data.streamer.toUpperCase()}`;
-    } else if (data.status === 'error') {
-      statusEl.style.background = '#ef4444';
-      statusEl.innerText = `❌ ATENÇÃO: A conta @${currentStreamer} não está AO VIVO ou foi bloqueada temporariamente.`;
-    }
-  });
-
-  socket.on('giftReceived', (data) => {
-    if (data.streamer && data.streamer.toLowerCase() === currentStreamer.toLowerCase()) {
-      handleGift(data.username, data.coins);
-    }
-  });
-
-  window.connectTikTok = function() {
-    let rawInput = document.getElementById('tiktokUsernameInput').value.trim();
-    if (!rawInput) {
-      alert("Por favor, informe o @ do TikTok!");
-      return;
-    }
-    const cleanUser = rawInput.replace('@', '').toLowerCase();
-    localStorage.setItem('tiktok_username', cleanUser);
-    initStreamer(cleanUser);
-  };
-
-  function initStreamer(username) {
-    currentStreamer = username;
-    
-    const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
-    document.getElementById('publicLinkDisplay').innerText = `${baseUrl}?user=${username}`;
-
-    socket.emit('setLiveUser', { username: username });
-
-    raffleDocRef = doc(db, "sorteios", username);
-
-    if (unsubscribeFirebase) unsubscribeFirebase();
-
-    unsubscribeFirebase = onSnapshot(raffleDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        targetCoins = data.targetCoins || 30;
-        availablePool = data.availablePool || [];
-        participants = data.participants || [];
-        allIssuedTickets = data.allIssuedTickets || [];
-        
-        document.getElementById('targetCoinsInput').value = targetCoins;
-        if (data.prizeInput) {
-          document.getElementById('prizeInput').value = data.prizeInput;
-        }
-        renderTable();
-        updateCounts();
+      // Salva o Session ID no navegador para não precisar colar toda vez
+      if (sessionId) {
+        localStorage.setItem('tiktok_session_id', sessionId);
       } else {
-        initTicketPool();
-        saveDataToFirebase();
+        localStorage.removeItem('tiktok_session_id');
       }
-    });
-  }
 
-  function initTicketPool() {
-    availablePool = [];
-    for (let i = 1; i <= 1000; i++) {
-      availablePool.push(i);
-    }
-  }
+      updateStatus('Conectando...', '');
 
-  async function saveDataToFirebase() {
-    if (!raffleDocRef) return;
-    try {
-      await setDoc(raffleDocRef, {
-        targetCoins: targetCoins,
-        availablePool: availablePool,
-        participants: participants,
-        allIssuedTickets: allIssuedTickets,
-        prizeInput: document.getElementById('prizeInput').value
+      // Envia evento para o backend
+      socket.emit('setLiveUser', {
+        username: username,
+        sessionId: sessionId
       });
-    } catch (e) {
-      console.error("Erro ao salvar no Firebase:", e);
-    }
-  }
-  window.saveDataToFirebase = saveDataToFirebase;
-
-  window.updateGoal = function() {
-    targetCoins = parseInt(document.getElementById('targetCoinsInput').value) || 1;
-    saveDataToFirebase();
-  };
-
-  function formatTicketNumber(num) {
-    return '#' + num.toString().padStart(4, '0');
-  }
-
-  function drawRandomUniqueTicket() {
-    if (availablePool.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * availablePool.length);
-    const chosenNumber = availablePool[randomIndex];
-    availablePool.splice(randomIndex, 1);
-    return chosenNumber;
-  }
-
- function handleGift(username, coinsReceived) {
-    // Normaliza o nome do doador para evitar duplicados por caixa alta/baixa
-    const cleanUsername = username.trim().toLowerCase();
-
-    let user = participants.find(p => p.username.toLowerCase() === cleanUsername);
-
-    if (!user) {
-      user = { username: cleanUsername, totalCoins: 0, tickets: [] };
-      participants.push(user);
     }
 
-    user.totalCoins += coinsReceived;
-
-    const expectedTicketsCount = Math.floor(user.totalCoins / targetCoins);
-    const newTicketsToGenerate = expectedTicketsCount - user.tickets.length;
-
-    for (let i = 0; i < newTicketsToGenerate; i++) {
-      const ticketNum = drawRandomUniqueTicket();
-      if (ticketNum !== null) {
-        user.tickets.push(ticketNum);
-        allIssuedTickets.push({ ticketNum: ticketNum, username: cleanUsername });
+    // Atualizações de Status vindas do Server
+    socket.on('statusUpdate', (data) => {
+      if (data.status === 'connected') {
+        updateStatus(`✅ Conectado a @${data.streamer}`, 'connected');
+      } else if (data.status === 'error') {
+        updateStatus(`❌ Erro: ${data.message || 'Falha ao conectar'}`, 'error');
+      } else if (data.status === 'ended') {
+        updateStatus(`🔴 Live de @${data.streamer} encerrada`, 'error');
       }
-    }
-
-    saveDataToFirebase();
-  }
-
-  function updateCounts() {
-    document.getElementById('totalTicketsCount').innerText = allIssuedTickets.length;
-    document.getElementById('availableTicketsCount').innerText = availablePool.length;
-  }
-
-  function renderTable() {
-    const tbody = document.getElementById('participantsTable');
-    tbody.innerHTML = '';
-
-    participants.forEach((p, index) => {
-      const tr = document.createElement('tr');
-      const sortedTickets = [...p.tickets].sort((a, b) => a - b);
-      
-      const ticketsHTML = sortedTickets.length > 0 
-        ? sortedTickets.map(t => `<span class="ticket-badge">${formatTicketNumber(t)}</span>`).join(' ')
-        : `<span class="no-ticket-badge">Aguardando valor mínimo (${p.totalCoins}/${targetCoins})</span>`;
-
-      tr.innerHTML = `
-        <td><strong>${index + 1}</strong></td>
-        <td><strong>@${p.username}</strong></td>
-        <td>${p.totalCoins} moedas</td>
-        <td><strong>${p.tickets.length}</strong></td>
-        <td>${ticketsHTML}</td>
-      `;
-      tbody.appendChild(tr);
     });
 
-    document.getElementById('totalParticipants').innerText = participants.length;
-  }
-
-  window.startDrawAnimation = function() {
-    if (isDrawing) return;
-    if (allIssuedTickets.length === 0) {
-      alert("Nenhum participante atingiu o valor mínimo para gerar um Número da Sorte ainda!");
-      return;
-    }
-
-    isDrawing = true;
-    document.getElementById('drawBtn').disabled = true;
-
-    const winningEntry = allIssuedTickets[Math.floor(Math.random() * allIssuedTickets.length)];
-    const counterDisplay = document.getElementById('digitalCounter');
-    const startTime = Date.now();
-    const duration = 5000;
-
-    const interval = setInterval(() => {
-      const elapsedTime = Date.now() - startTime;
-      const randomVisualNum = Math.floor(Math.random() * 1000) + 1;
-      counterDisplay.innerText = formatTicketNumber(randomVisualNum);
-
-      if (elapsedTime >= duration) {
-        clearInterval(interval);
-        counterDisplay.innerText = formatTicketNumber(winningEntry.ticketNum);
-        
-        setTimeout(() => {
-          isDrawing = false;
-          document.getElementById('drawBtn').disabled = false;
-          showWinner(winningEntry);
-        }, 300);
-      }
-    }, 50);
-  };
-
-  function showWinner(winningEntry) {
-    const prize = document.getElementById('prizeInput').value;
-    document.getElementById('modalWinnerTicket').innerText = `NÚMERO DA SORTE ${formatTicketNumber(winningEntry.ticketNum)}`;
-    document.getElementById('winnerName').innerText = `@${winningEntry.username}`;
-    document.getElementById('winnerPrize').innerText = `Prêmio: ${prize}`;
-    document.getElementById('winnerModal').classList.add('active');
-  }
-
-  window.closeModal = function() {
-    document.getElementById('winnerModal').classList.remove('active');
-  };
-
-  window.startTimer = function() {
-    clearInterval(timerInterval);
-    let duration = parseInt(document.getElementById('timerMinutes').value) * 60;
-    
-    timerInterval = setInterval(() => {
-      const minutes = Math.floor(duration / 60);
-      const seconds = duration % 60;
+    // Recebe Presentes do Server
+    socket.on('giftReceived', (data) => {
+      console.log('🎁 Presente recebido:', data);
       
-      document.getElementById('timerDisplay').innerText = 
-        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-      if (--duration < 0) {
-        clearInterval(timerInterval);
-        alert("⏱️ O tempo do sorteio encerrou!");
+      const giftLog = document.getElementById('giftLog');
+      
+      // Limpa mensagem inicial se houver
+      if (giftLog.innerHTML.includes('Nenhum presente')) {
+        giftLog.innerHTML = '';
       }
-    }, 1000);
-  };
 
-  window.clearList = function() {
-    if (confirm(`Deseja realmente apagar TODOS os dados salvos para @${currentStreamer}?`)) {
-      initTicketPool();
-      participants = [];
-      allIssuedTickets = [];
-      document.getElementById('digitalCounter').innerText = '#0000';
-      saveDataToFirebase();
+      const item = document.createElement('div');
+      item.className = 'gift-item';
+      item.innerHTML = `🎁 <strong>@${data.username}</strong> enviou <strong>${data.coins}</strong> moeda(s)!`;
+      
+      giftLog.prepend(item);
+
+      // Aqui você pode chamar sua função handleGift existente para registrar na rifa/sorteio
+      if (typeof handleGift === 'function') {
+        handleGift(data.username, data.coins);
+      }
+    });
+
+    function updateStatus(text, className) {
+      const statusBox = document.getElementById('statusBox');
+      statusBox.innerText = text;
+      statusBox.className = `status-badge ${className}`;
     }
-  };
-
-  window.simulateGift = function(coins) {
-    const randomUsers = ["pedro_live", "ana_tiktok", "gamer_pro", "lucas_123", "canal_stream", "marcos_vt", "julia_play", "bruno_top"];
-    const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
-    handleGift(randomUser, coins);
-  };
-</script>
-
+  </script>
 </body>
 </html>
