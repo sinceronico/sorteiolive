@@ -1,19 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const TikTokConnector = require('tiktok-live-connector');
 
-// Detecta a classe correta independente da versão do pacote
-let WebcastConnection;
-if (typeof TikTokConnector === 'function') {
-  WebcastConnection = TikTokConnector;
-} else if (TikTokConnector.WebcastPushConnection) {
-  WebcastConnection = TikTokConnector.WebcastPushConnection;
-} else if (TikTokConnector.default) {
-  WebcastConnection = TikTokConnector.default;
-} else {
-  WebcastConnection = TikTokConnector;
-}
+// Importação adequada para as versões recentes da biblioteca tiktok-live-connector
+const { WebcastPushConnection } = require('tiktok-live-connector');
 
 // 1. Inicializa o App Express
 const app = express();
@@ -89,14 +79,14 @@ io.on('connection', (socket) => {
     }
 
     try {
-      tiktokLiveConnection = new WebcastConnection(username, options);
+      tiktokLiveConnection = new WebcastPushConnection(username, options);
 
       tiktokLiveConnection.connect().then(state => {
         console.log(`✅ Conectado à live de @${username} (Room ID: ${state.roomId})`);
         socket.emit('statusUpdate', { status: 'connected', streamer: username });
       }).catch(err => {
         console.error(`❌ Erro ao conectar na live de @${username}:`, err);
-        socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar' });
+        socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar via servidor. Use o TikFinity.' });
       });
 
       // Escuta presentes do tiktok-live-connector
@@ -118,10 +108,10 @@ io.on('connection', (socket) => {
         socket.emit('statusUpdate', { status: 'ended', streamer: username });
       });
     } catch (err) {
-      console.error(`❌ Erro interno na biblioteca TikTok:`, err);
+      console.error(`❌ Erro na conexão direta:`, err);
       socket.emit('statusUpdate', { 
         status: 'error', 
-        message: 'Falha ao inicializar. Use o TikFinity para enviar os presentes.' 
+        message: 'A conexão direta foi bloqueada. Utilize a integração do TikFinity.' 
       });
     }
   });
