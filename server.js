@@ -1,250 +1,122 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { WebcastPushConnection } = require('tiktok-live-connector');
 const admin = require('firebase-admin');
+const path = require('path');
 
-// ==========================================
-// 1. INICIALIZAÇÃO SEGURA DO FIREBASE ADMIN
-// ==========================================
-// Não utiliza require('./serviceAccountKey.json') para evitar o erro MODULE_NOT_FOUND no Render.
-
-if (process.env.FIREBASE_PRIVATE_KEY) {
-  try {
-    const serviceAccount = {
-      type: "service_account",
-      project_id: process.env.FIREBASE_PROJECT_ID || "sorteiolive-ec896",
-      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      client_email: process.env.FIREBASE_CLIENT_EMAIL,
-      client_id: process.env.FIREBASE_CLIENT_ID,
-      auth_uri: "https://accounts.google.com/o/oauth2/auth",
-      token_uri: "https://oauth2.googleapis.com/token",
-      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-      client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
-    };
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: process.env.FIREBASE_DATABASE_URL || "https://sorteiolive-ec896-default-rtdb.firebaseio.com"
-    });
-    console.log('🔥 Firebase Admin conectado com sucesso via Variáveis de Ambiente!');
-  } catch (err) {
-    console.error('❌ Erro ao inicializar Firebase Admin:', err.message);
-  }
-} else {
-  console.warn('⚠️ FIREBASE_PRIVATE_KEY não configurada no Render. O servidor executará em memória temporária.');
-}
-
-const db = admin.apps.length ? admin.database() : null;
-const stateRef = db ? db.ref('raffle_state') : null;
-
-// ==========================================
-// 2. ESTADO GLOBAL DO SERVIDOR
-// ==========================================
-let appState = {
-  prize: '',
-  coinsPerTicket: 1,
-  participants: {},
-  availableTicketsPool: []
-};
-
-// Embaralhamento Fisher-Yates
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
-// Gera o pool de 100.000 bilhetes numéricos aleatórios
-function generateRandomTicketsPool() {
-  const numbers = [];
-  for (let i = 1000; i < 101000; i++) {
-    numbers.push(i);
-  }
-  return shuffleArray(numbers);
-}
-
-// Carrega o estado do banco do Firebase
-async function loadStateFromFirebase() {
-  if (!stateRef) {
-    appState.availableTicketsPool = generateRandomTicketsPool();
-    return;
-  }
-
-  try {
-    const snapshot = await stateRef.once('value');
-    const data = snapshot.val();
-    if (data) {
-      appState = {
-        prize: data.prize || '',
-        coinsPerTicket: data.coinsPerTicket || 1,
-        participants: data.participants || {},
-        availableTicketsPool: data.availableTicketsPool || generateRandomTicketsPool()
-      };
-      console.log('📦 Estado recuperado do Firebase com sucesso.');
-    } else {
-      appState.availableTicketsPool = generateRandomTicketsPool();
-      await saveStateToFirebase();
-      console.log('✨ Novo estado inicializado no Firebase.');
-    }
-  } catch (err) {
-    console.error('❌ Erro ao ler dados do Firebase:', err.message);
-    appState.availableTicketsPool = generateRandomTicketsPool();
-  }
-}
-
-// Salva o estado atual no Firebase
-async function saveStateToFirebase() {
-  if (!stateRef) return;
-  try {
-    await stateRef.set(appState);
-  } catch (err) {
-    console.error('❌ Erro ao salvar dados no Firebase:', err.message);
-  }
-}
-
-loadStateFromFirebase();
-
-// ==========================================
-// 3. CONFIGURAÇÃO EXPRESS E SOCKET.IO
-// ==========================================
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
-
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: '*',
+    methods: ['GET', 'POST']
   }
 });
 
-let tiktokLiveConnection = null;
-let activeStreamer = "";
+// ==========================================
+// INICIALIZAÇÃO SEGURA DO FIREBASE ADMIN
+// ==========================================
+let db = null;
+let participantsRef = null;
+let prizeRef = null;
 
-// Lógica para atribuição de bilhetes por moedas
-async function processContribution(username, coins) {
-  const coinsNum = Number(coins);
-  if (!appState.participants[username]) {
-    appState.participants[username] = { coins: 0, tickets: [] };
+try {
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    : null;
+
+  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        }),
+        databaseURL: process.env.FIREBASE_DATABASE_URL
+      });
+    }
+    db = admin.database();
+    participantsRef = db.ref('participants');
+    prizeRef = db.ref('prize');
+    console.log('✅ Firebase Admin inicializado com sucesso.');
+  } else {
+    console.warn('⚠️ Variáveis de ambiente do Firebase ausentes no Render. Rodando em modo local/temporário.');
   }
-
-  appState.participants[username].coins += coinsNum;
-  const targetTicketsCount = Math.floor(appState.participants[username].coins / appState.coinsPerTicket);
-
-  while (appState.participants[username].tickets.length < targetTicketsCount && appState.availableTicketsPool.length > 0) {
-    const randomTicketNumber = appState.availableTicketsPool.pop();
-    appState.participants[username].tickets.push(randomTicketNumber);
-  }
-
-  await saveStateToFirebase();
-  io.emit('stateUpdated', appState);
+} catch (error) {
+  console.error('❌ Erro ao inicializar o Firebase Admin:', error.message);
 }
 
-// ==========================================
-// 4. ROTAS E WEBHOOKS
-// ==========================================
-const handleTikfinityWebhook = async (req, res) => {
-  const donorUser = req.query.username || req.body.username || req.body.uniqueId || req.body.nickname;
-  const coins = req.query.coins || req.body.coins || req.body.diamondCount || req.body.repeatCount || 1;
+// Servir arquivos estáticos (HTML, CSS, JS)
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
-  if (donorUser) {
-    console.log(`🎁 [WEBHOOK TIKFINITY] @${donorUser} enviou ${coins} moeda(s)!`);
-    await processContribution(donorUser, coins);
-    io.emit('giftReceived', { username: donorUser, coins: Number(coins), streamer: activeStreamer });
+// ==========================================
+// ROTAS PARA WEBHOOK / TIKFINITY
+// ==========================================
+app.post('/webhook-gift', async (req, res) => {
+  try {
+    const { username, coins } = req.body;
+
+    if (!username || !coins) {
+      return res.status(400).json({ error: 'Username e coins são obrigatórios.' });
+    }
+
+    const numericCoins = Number(coins);
+
+    // Salva no Firebase se configurado
+    if (participantsRef) {
+      const sanitizedUser = username.replace(/[.#$\[\]]/g, "_");
+      const userRef = participantsRef.child(sanitizedUser);
+
+      await userRef.transaction((currentUser) => {
+        if (currentUser) {
+          currentUser.coins = (currentUser.coins || 0) + numericCoins;
+        } else {
+          currentUser = { coins: numericCoins };
+        }
+        return currentUser;
+      });
+    }
+
+    // Emite o evento em tempo real via Socket.IO para o Painel
+    io.emit('giftReceived', { username, coins: numericCoins });
+
+    return res.status(200).json({ status: 'sucesso', username, coins: numericCoins });
+  } catch (err) {
+    console.error('Erro no webhook-gift:', err);
+    return res.status(500).json({ error: 'Erro interno no servidor' });
   }
-
-  res.status(200).send({ success: true });
-};
-
-app.post('/webhook/tikfinity', handleTikfinityWebhook);
-app.get('/webhook/tikfinity', handleTikfinityWebhook);
+});
 
 // ==========================================
-// 5. COMUNICAÇÃO SOCKET.IO (PAINEL E PÚBLICO)
+// SOCKET.IO (COMUNICAÇÃO COM O PAINEL)
 // ==========================================
 io.on('connection', (socket) => {
-  console.log('📱 Cliente conectado.');
-
-  // Envia os dados atuais para novas abas/clientes
-  socket.emit('stateUpdated', appState);
+  console.log('🟢 Novo cliente conectado ao painel:', socket.id);
 
   // Atualizar Prêmio
   socket.on('updatePrize', async (prizeText) => {
-    appState.prize = prizeText;
-    await saveStateToFirebase();
-    io.emit('stateUpdated', appState);
+    if (prizeRef) {
+      await prizeRef.set(prizeText);
+    }
+    io.emit('prizeUpdated', prizeText);
   });
 
-  // Atualizar Valor por Bilhete
-  socket.on('updateCoinsPerTicket', async (value) => {
-    appState.coinsPerTicket = Number(value) || 1;
-    await saveStateToFirebase();
-    io.emit('stateUpdated', appState);
-  });
-
-  // Zerar Sorteio
+  // Zerar Rifa
   socket.on('clearData', async () => {
-    appState.participants = {};
-    appState.availableTicketsPool = generateRandomTicketsPool();
-    await saveStateToFirebase();
-    io.emit('stateUpdated', appState);
+    if (participantsRef) {
+      await participantsRef.remove();
+    }
+    io.emit('clearDataReceived');
   });
 
-  // TikTok Live Connector Direct
-  socket.on('setLiveUser', ({ username, sessionId }) => {
-    activeStreamer = username;
-
-    if (tiktokLiveConnection) {
-      try { tiktokLiveConnection.disconnect(); } catch (e) {}
-    }
-
-    const options = { enableExtendedGiftInfo: true };
-    if (sessionId) options.sessionId = sessionId;
-
-    try {
-      tiktokLiveConnection = new WebcastPushConnection(username, options);
-
-      tiktokLiveConnection.connect().then(state => {
-        console.log(`✅ Conectado diretamente à live de @${username}`);
-        socket.emit('statusUpdate', { status: 'connected', streamer: username });
-      }).catch(err => {
-        console.error(`❌ Erro na conexão direta com @${username}:`, err);
-        socket.emit('statusUpdate', { status: 'error', message: err.message || 'Falha ao conectar via servidor.' });
-      });
-
-      tiktokLiveConnection.on('gift', async data => {
-        if (data.giftType === 1 && data.repeatEnd === false) return;
-
-        const totalCoins = (data.diamondCount || 1) * (data.repeatCount || 1);
-        await processContribution(data.uniqueId, totalCoins);
-
-        io.emit('giftReceived', {
-          username: data.uniqueId,
-          coins: totalCoins,
-          streamer: username
-        });
-      });
-
-      tiktokLiveConnection.on('streamEnd', () => {
-        socket.emit('statusUpdate', { status: 'ended', streamer: username });
-      });
-    } catch (err) {
-      console.error(`❌ Falha na conexão direta:`, err);
-      socket.emit('statusUpdate', { status: 'error', message: 'Erro na conexão direta. Utilize o TikFinity.' });
-    }
+  socket.on('disconnect', () => {
+    console.log('🔴 Cliente desconectado:', socket.id);
   });
 });
 
-// ==========================================
-// 6. INICIALIZAÇÃO DA PORTA
-// ==========================================
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
