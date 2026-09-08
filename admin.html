@@ -589,11 +589,14 @@
     return chosenNumber;
   }
 
-  function handleGift(username, coinsReceived) {
-    let user = participants.find(p => p.username === username);
+ function handleGift(username, coinsReceived) {
+    // Normaliza o nome do doador para evitar duplicados por caixa alta/baixa
+    const cleanUsername = username.trim().toLowerCase();
+
+    let user = participants.find(p => p.username.toLowerCase() === cleanUsername);
 
     if (!user) {
-      user = { username: username, totalCoins: 0, tickets: [] };
+      user = { username: cleanUsername, totalCoins: 0, tickets: [] };
       participants.push(user);
     }
 
@@ -606,7 +609,7 @@
       const ticketNum = drawRandomUniqueTicket();
       if (ticketNum !== null) {
         user.tickets.push(ticketNum);
-        allIssuedTickets.push({ ticketNum: ticketNum, username: username });
+        allIssuedTickets.push({ ticketNum: ticketNum, username: cleanUsername });
       }
     }
 
