@@ -1,18 +1,3 @@
-tiktokLiveConnection = new WebcastPushConnection(activeStreamer, {
-    processInitialData: false,
-    enableExtendedGiftInfo: true,
-    requestPollingIntervalMs: 1000,
-    clientParams: {
-      "app_language": "pt-BR",
-      "device_platform": "web",
-      "webcast_language": "pt-BR"
-    },
-    requestOptions: {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-      }
-    }
-  });
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -35,13 +20,13 @@ function connectToTikTok(username) {
 
   if (!cleanUsername) return;
 
-  // Se já estiver conectado no mesmo usuário, ignora
+  // Se ja estiver conectado no mesmo usuario, ignora
   if (tiktokLiveConnection && activeStreamer === cleanUsername) {
-    console.log(`⚠️ Já conectado à live de @${cleanUsername}`);
+    console.log(`⚠️ Ja conectado a live de @${cleanUsername}`);
     return;
   }
 
-  // Desconecta live anterior com segurança
+  // Desconecta live anterior com seguranca
   if (tiktokLiveConnection) {
     try {
       tiktokLiveConnection.disconnect();
@@ -53,60 +38,49 @@ function connectToTikTok(username) {
   }
 
   activeStreamer = cleanUsername;
-  console.log(`📡 Tentando conectar à live de: @${activeStreamer}...`);
+  console.log(`📡 Tentando conectar a live de: @${activeStreamer}...`);
 
-  // Cria nova conexão configurada para evitar bloqueios do TikTok
+  // Cria nova conexao configurada para evitar bloqueios do TikTok
   tiktokLiveConnection = new WebcastPushConnection(activeStreamer, {
     processInitialData: false,
     enableExtendedGiftInfo: true,
-    requestPollingIntervalMs: 2000,
+    requestPollingIntervalMs: 1000,
     clientParams: {
       "app_language": "pt-BR",
-      "device_platform": "web"
+      "device_platform": "web",
+      "webcast_language": "pt-BR"
+    },
+    requestOptions: {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+      }
     }
   });
 
   tiktokLiveConnection.connect().then(state => {
-    console.log(`✅ CONECTADO com sucesso à live de @${activeStreamer} (Room ID: ${state.roomId})`);
+    console.log(`✅ CONECTADO com sucesso a live de @${activeStreamer} (Room ID: ${state.roomId})`);
     io.emit('statusUpdate', { status: 'connected', streamer: activeStreamer });
   }).catch(err => {
     console.error(`❌ Falha ao conectar em @${activeStreamer}:`, err.message || err);
-    io.emit('statusUpdate', { status: 'error', message: 'Live offline ou não encontrada' });
+    io.emit('statusUpdate', { status: 'error', message: 'Live offline ou nao encontrada' });
   });
 
-  // OUVINTE DE PRESENTES (GIFTS) REVISADO E ROBUSTO
+  // OUVINTE DE PRESENTES (GIFTS) REVISADO
   tiktokLiveConnection.on('gift', data => {
-    // 1. Identifica o nome do usuário que enviou o presente
     const donorUser = data.uniqueId || data.nickname;
     if (!donorUser) return;
 
-    // 2. Trata presentes em combo (para não ignorar presentes de 1 moeda no final da animação)
-    // Se for um presente contínuo (giftType 1) e ainda estiver na fase de combo, ignoramos para acumular apenas no final
+    // Se for presente continuo (combo) e ainda nao acabou, aguarda finalizar
     if (data.giftType === 1 && data.repeatEnd === false) {
       return; 
     }
 
-    // 3. Cálculo das moedas recebidas
-    // Tenta capturar o valor em diamantes/moedas por unidade
     const diamondUnit = data.diamondCount || data.diamond_count || data.gift?.diamond_count || 1;
-    
-    // Tenta capturar a quantidade de vezes que o presente foi repetido no combo
     const count = data.repeatCount || data.repeat_count || 1;
-
-    // Total final de moedas do lote
     const giftCoins = diamondUnit * count;
 
-    console.log(`🎁 [PRESENTE RECONHECIDO] @${donorUser} enviou ${giftCoins} moeda(s) (Item: ${data.giftName || 'Presente'})`);
+    console.log(`🎁 [PRESENTE RECONHECIDO] @${donorUser} enviou ${giftCoins} moeda(s)`);
 
-    // 4. Dispara o presente via Socket para o painel admin
-    io.emit('giftReceived', {
-      username: donorUser,
-      coins: giftCoins,
-      streamer: activeStreamer
-    });
-  });
-
-    // Dispara presente para o admin em tempo real
     io.emit('giftReceived', {
       username: donorUser,
       coins: giftCoins,
@@ -120,16 +94,14 @@ function connectToTikTok(username) {
   });
 }
 
-// CONEXÃO VIA SOCKET.IO COM O PAINEL
+// CONEXAO VIA SOCKET.IO COM O PAINEL
 io.on('connection', (socket) => {
   console.log(`⚡ Cliente conectado ao Socket: ${socket.id}`);
 
-  // Se já houver um streamer ativo, informa o novo cliente
   if (activeStreamer) {
     socket.emit('statusUpdate', { status: 'connected', streamer: activeStreamer });
   }
 
-  // Evento vindo do painel admin ao clicar em "ALTERAR / CONECTAR LIVE"
   socket.on('setLiveUser', (data) => {
     if (data && data.username) {
       connectToTikTok(data.username);
