@@ -3,646 +3,293 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel da Rifa - TikTok Live</title>
+  <title>Painel de Premios</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Socket.IO -->
+  <!-- Socket.io -->
   <script src="/socket.io/socket.io.js"></script>
-  <!-- Biblioteca de Confetes -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <!-- SDKs do Firebase Web -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <!-- Firebase App & Database (CDN Modular / Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
-    /* Estilos do Carrossel do Sorteio */
-    .roulette-container {
-      overflow: hidden;
-      position: relative;
-      width: 100%;
-      height: 120px;
-      background-color: #0f172a;
-      border: 3px solid #3b82f6;
-      border-radius: 12px;
-    }
-    .roulette-track {
-      display: flex;
-      align-items: center;
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      will-change: transform;
-      transition-timing-function: cubic-bezier(0.1, 0.9, 0.2, 1);
-    }
-    .roulette-card {
-      min-width: 140px;
-      height: 90px;
-      margin: 0 8px;
-      background: linear-gradient(135deg, #1e293b, #334155);
-      border: 2px solid #475569;
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: bold;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .roulette-pointer {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 6px;
-      height: 100%;
-      background-color: #ef4444;
-      z-index: 20;
-      box-shadow: 0 0 10px #ef4444;
+    /* Animação suave para a transição da barra de progresso */
+    #barraProgressoMeta {
+      transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
     }
   </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-6 font-sans">
+<body class="bg-gray-950 text-white min-h-screen font-sans flex flex-col">
 
-  <!-- MODAL DE LOGIN COM SENHA -->
-  <div id="loginModal" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-      <div class="text-4xl mb-3">🔒</div>
-      <h2 class="text-2xl font-black text-blue-400 mb-1">Acesso Restrito</h2>
-      <p class="text-xs text-slate-400 mb-6">Digite a senha administrativa para acessar o painel do sorteio:</p>
-      
-      <form onsubmit="checkPassword(event)">
-        <input type="password" id="passwordInput" placeholder="Sua senha..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-center text-lg font-bold text-white mb-4 focus:outline-none focus:border-blue-500">
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-3 rounded-lg transition">
-          ENTRAR NO PAINEL
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Cabeçalho -->
-  <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-700 pb-4">
-    <div>
-      <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
-      <p class="text-xs text-slate-400 mt-1">Acompanhamento e sorteios de bilhetes em tempo real</p>
-    </div>
-    <div class="flex items-center gap-3" id="adminHeaderControls">
-      <span id="statusBadge" class="px-3 py-1 bg-green-600 text-xs font-bold rounded-full uppercase">Status: Online</span>
-      <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded font-bold transition">Zerar Rifa</button>
+  <!-- HEADER -->
+  <header class="bg-gray-900 border-b border-gray-800 py-4 px-6 flex justify-between items-center shadow-lg">
+    <h1 class="text-xl font-bold text-yellow-500 tracking-wide uppercase flex items-center gap-2">
+      ⚡ Painel Admin - Sorteio em Live
+    </h1>
+    <div id="statusConexao" class="text-xs px-3 py-1 rounded-full bg-red-900/60 text-red-300 border border-red-700">
+      Desconectado
     </div>
   </header>
 
-  <!-- CARD DO PRÊMIO DO SORTEIO -->
-  <div class="max-w-6xl mx-auto mb-6 bg-gradient-to-r from-amber-500/20 via-slate-800 to-amber-500/20 border border-amber-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-    <div class="flex items-center gap-3 w-full sm:w-auto">
-      <div class="p-3 bg-amber-500/20 text-amber-400 rounded-lg text-3xl">🏆</div>
-      <div>
-        <h3 class="font-bold text-xs uppercase tracking-wider text-amber-400">Prêmio do Sorteio</h3>
-        <div id="prizeDisplay" class="text-2xl font-black text-amber-300 hidden">Nenhum prêmio definido</div>
-      </div>
-    </div>
-    <div id="prizeInputContainer" class="flex items-center gap-2 w-full sm:w-auto">
-      <input type="text" id="prizeInput" oninput="updatePrize()" placeholder="Ex: PIX de R$ 100 / Camisa Oficial" class="bg-slate-900 border border-amber-500/50 rounded-lg px-4 py-2 text-base text-amber-200 placeholder-slate-500 w-full sm:w-96 font-bold focus:outline-none focus:border-amber-400">
-    </div>
-  </div>
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <!-- CARD DO LINK PÚBLICO DOS PARTICIPANTES -->
-  <div id="publicLinkCard" class="max-w-6xl mx-auto mb-6 bg-slate-800 border border-blue-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
-    <div class="flex items-center gap-3">
-      <div class="p-3 bg-blue-600/20 text-blue-400 rounded-lg text-2xl">🔗</div>
-      <div>
-        <h3 class="font-bold text-sm text-blue-300">Link Público para os Espectadores</h3>
-        <p class="text-xs text-slate-400">Envie este link na live para os participantes consultarem seus Números da Sorte sem pedir senha:</p>
+    <!-- COLUNA DA ESQUERDA: ROLETA E CONTROLES DE META -->
+    <div class="lg:col-span-2 flex flex-col items-center justify-start bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-2xl">
+      
+      <!-- ÁREA DA ROLETA -->
+      <div class="relative w-full flex flex-col items-center justify-center my-4">
+        <canvas id="roletaCanvas" width="450" height="450" class="max-w-full drop-shadow-[0_0_15px_rgba(234,179,8,0.2)]"></canvas>
       </div>
-    </div>
-    <div class="flex items-center gap-2 w-full sm:w-auto">
-      <input type="text" id="publicUrlInput" readonly class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-slate-300 w-full sm:w-80 font-mono">
-      <button onclick="copyPublicLink()" id="btnCopy" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded font-bold transition whitespace-nowrap">
-        Copiar Link
+
+      <!-- BOTÃO DE REALIZAR SORTEIO -->
+      <button 
+        id="btnSortear" 
+        onclick="realizarSorteio()"
+        class="w-full max-w-md py-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-xl uppercase rounded-xl shadow-lg transform transition active:scale-95 hover:shadow-yellow-500/20"
+      >
+        🎯 Realizar Sorteio
       </button>
-    </div>
-  </div>
 
-  <main class="max-w-6xl mx-auto grid grid-cols-1 gap-6">
-
-    <!-- SEÇÃO SUPERIOR: CONFIGURAÇÃO, ROLETA & FEED (OCULTA NO MODO PÚBLICO) -->
-    <section id="adminSection" class="w-full flex flex-col gap-6">
-
-      <!-- CARD DE SORTEIO / ROLETA HORIZONTAL -->
-      <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <h2 class="text-xl font-bold mb-4 text-yellow-400 flex items-center gap-2">🎰 Sorteio dos Números da Sorte</h2>
+      <!-- BARRA DE META DE MOEDAS (LOCALIZADA LOGO ABAIXO DO BOTÃO) -->
+      <div class="w-full max-w-md mt-6 p-4 bg-gray-900/90 rounded-xl border border-gray-800 shadow-md">
         
-        <!-- Roleta Horizontal -->
-        <div class="roulette-container mb-6">
-          <div class="roulette-pointer"></div>
-          <div id="rouletteTrack" class="roulette-track">
-            <div class="roulette-card">Aguardando...</div>
+        <!-- Configuração da Meta -->
+        <div class="flex items-center justify-between gap-4 mb-3">
+          <label for="inputMetaMoedas" class="text-sm font-semibold text-gray-300">
+            Meta de Moedas:
+          </label>
+          <div class="flex items-center gap-2">
+            <input 
+              type="number" 
+              id="inputMetaMoedas" 
+              value="1000" 
+              min="1" 
+              class="w-28 px-3 py-1 bg-gray-950 border border-gray-700 rounded-lg text-white font-bold text-right focus:outline-none focus:border-yellow-500 transition"
+              onchange="atualizarBarraMeta()"
+              oninput="atualizarBarraMeta()"
+            />
+            <span class="text-sm text-gray-400">moedas</span>
           </div>
         </div>
 
-        <div class="flex gap-4">
-          <button onclick="startDraw()" id="btnDraw" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-extrabold py-3 px-6 rounded-lg text-lg shadow-lg transition transform active:scale-95">
-            🎲 REALIZAR SORTEIO (10s)
-          </button>
+        <!-- Indicador de Status/Porcentagem -->
+        <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
+          <span>Acumulado Atual</span>
+          <span id="textoStatusMeta" class="font-bold text-yellow-400">0 / 1000 (0%)</span>
         </div>
+
+        <!-- Barra de Progresso Horizontal -->
+        <div class="w-full bg-gray-950 h-5 rounded-full overflow-hidden p-1 border border-gray-800 relative">
+          <div 
+            id="barraProgressoMeta" 
+            class="bg-gradient-to-r from-yellow-500 to-amber-400 h-full rounded-full shadow-lg"
+            style="width: 0%"
+          ></div>
+        </div>
+
       </div>
-      <!-- PAINEL DE META DE MOEDAS -->
-<div class="mt-6 p-4 bg-gray-800 rounded-xl border border-gray-700 shadow-md">
-  
-  <!-- Configuração da Meta -->
-  <div class="flex items-center justify-between gap-4 mb-3">
-    <label for="inputMetaMoedas" class="text-sm font-semibold text-gray-300">
-      Meta de Moedas para o Sorteio:
-    </label>
-    <div class="flex items-center gap-2">
-      <input 
-        type="number" 
-        id="inputMetaMoedas" 
-        value="1000" 
-        min="1" 
-        class="w-28 px-3 py-1 bg-gray-900 border border-gray-600 rounded-lg text-white font-bold text-right focus:outline-none focus:border-yellow-500"
-        onchange="atualizarBarraMeta()"
-      />
-      <span class="text-sm text-gray-400">moedas</span>
+
     </div>
-  </div>
 
-  <!-- Indicador do Total Atual vs Meta -->
-  <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
-    <span>Progresso Atual</span>
-    <span id="textoStatusMeta" class="font-bold text-yellow-400">0 / 1000 (0%)</span>
-  </div>
-
-  <!-- Barra de Progresso Horizontal -->
-  <div class="w-full bg-gray-900 h-5 rounded-full overflow-hidden p-1 border border-gray-700 relative">
-    <div 
-      id="barraProgressoMeta" 
-      class="bg-gradient-to-r from-yellow-500 to-amber-400 h-full rounded-full transition-all duration-500 shadow-lg"
-      style="width: 0%"
-    ></div>
-  </div>
-
-</div>
-
-      <!-- PAINEL DUPLO: CONFIGURAÇÕES E FEED DE PRESENTES -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- CARD DE REGRAS DE CONVERSÃO E LIMITE DE BILHETES -->
-        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-          <h2 class="text-lg font-bold mb-4 text-blue-400">⚙️ Regras e Configuração do Sorteio</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Regra 1: Custo em Moedas -->
-            <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
-              <label class="text-xs text-slate-400 font-medium mb-1">1 Núm. da Sorte a cada:</label>
-              <div class="flex items-center gap-2">
-                <input type="number" id="coinsPerTicket" value="1" min="1" onchange="sendConfigUpdate()" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-24 text-center font-bold text-sm">
-                <span class="text-xs text-slate-300">Moeda(s)</span>
-              </div>
-            </div>
-
-            <!-- Regra 2: Limite Máximo de Bilhetes -->
-            <div class="bg-slate-900/60 p-3.5 rounded-lg border border-slate-700 flex flex-col justify-between">
-              <label class="text-xs text-slate-400 font-medium mb-1">Máximo de Bilhetes no Sorteio:</label>
-              <div class="flex items-center gap-2">
-                <input type="number" id="maxTicketsLimit" value="100000" min="1" max="100000" onchange="sendConfigUpdate()" class="bg-slate-900 border border-slate-600 rounded px-3 py-1.5 text-white w-28 text-center font-bold text-sm">
-                <span class="text-xs text-slate-400">(Máx. 100.000)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- FEED DE PRESENTES -->
-        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-          <h2 class="text-lg font-bold mb-3 text-emerald-400">🎁 Últimos Presentes Recebidos</h2>
-          <div id="giftFeed" class="space-y-2 max-h-48 overflow-y-auto pr-2 text-sm">
-            <p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>
-          </div>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- SEÇÃO INFERIOR: TABELA DE PARTICIPANTES -->
-    <section id="tableSection" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col w-full">
+    <!-- COLUNA DA DIREITA: LISTA DE PARTICIPANTES -->
+    <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-2xl flex flex-col h-[650px]">
       <div class="flex justify-between items-center mb-4">
-        <div>
-          <h2 class="text-xl font-bold text-blue-400">👥 Participantes</h2>
-          <p id="ruleInfoText" class="text-xs text-slate-400 mt-0.5">Regra atual: 1 bilhete a cada <span id="currentCoinsRuleDisplay" class="text-blue-300 font-bold">1</span> moeda(s)</p>
-        </div>
-        <span id="totalTicketsCount" class="text-xs bg-blue-900 text-blue-200 px-2.5 py-1 rounded-full font-bold">Total Bilhetes: 0</span>
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          👥 Participantes (<span id="totalParticipantes">0</span>)
+        </h2>
+        <button 
+          onclick="limparParticipantes()" 
+          class="text-xs bg-red-950 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg border border-red-800 transition"
+        >
+          Limpar Lista
+        </button>
       </div>
 
-      <!-- CAMPO DE PESQUISA RÁPIDA -->
-      <div class="mb-4">
-        <input type="text" id="searchInput" onkeyup="filterParticipants()" placeholder="🔍 Buscar seu @usuario..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
-      </div>
-
-      <div class="flex-1 overflow-x-auto overflow-y-auto max-h-[550px]">
-        <table class="w-full text-left text-sm">
-          <thead class="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0">
+      <!-- Tabela de Participantes -->
+      <div class="flex-1 overflow-y-auto pr-1">
+        <table class="w-full text-left text-sm text-gray-300">
+          <thead class="text-xs uppercase bg-gray-950 text-gray-400 sticky top-0">
             <tr>
-              <th class="p-3 w-1/4">Usuário</th>
-              <th class="p-3 text-center w-1/6">Moedas</th>
-              <th class="p-3 w-7/12">Números da Sorte</th>
+              <th class="p-2 rounded-l-lg">Usuário</th>
+              <th class="p-2 text-center">Moedas</th>
+              <th class="p-2 text-right rounded-r-lg">Tickets</th>
             </tr>
           </thead>
-          <tbody id="participantsTable" class="divide-y divide-slate-700">
-            <tr>
-              <td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td>
-            </tr>
+          <tbody id="tabelaParticipantes" class="divide-y divide-gray-800">
+            <!-- Linhas geradas via JavaScript -->
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
 
   </main>
 
-  <!-- MODAL DO GANHADOR -->
-  <div id="winnerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-    <div class="bg-slate-800 border-2 border-yellow-400 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl transform transition-all scale-100">
-      <h2 class="text-2xl font-black text-yellow-400 mb-2">🎉 TEMOS UM GANHADOR! 🎉</h2>
-      <p class="text-slate-300 text-sm mb-4">O Número da Sorte contemplado foi:</p>
-      
-      <div class="bg-slate-900 border border-yellow-500/30 rounded-xl p-6 mb-6">
-        <div id="winnerNumber" class="text-5xl font-black text-yellow-400 mb-2">#0000</div>
-        <div id="winnerName" class="text-2xl font-extrabold text-green-400 break-words">@usuario</div>
-      </div>
-
-      <button onclick="closeWinnerModal()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-extrabold py-3 rounded-lg transition">
-        FECHAR E CONTINUAR
-      </button>
-    </div>
-  </div>
-
+  <!-- LÓGICA E CONEXÃO -->
   <script>
-    const socket = io();
-
-    // CONFIGURAÇÃO DO FIREBASE WEB SDK (Substitua pelas suas credenciais do Firebase Console)
+    // 1. Configuração do Firebase
     const firebaseConfig = {
       apiKey: "SUA_API_KEY",
-      authDomain: "seu-projeto.firebaseapp.com",
-      databaseURL: "https://seu-projeto-default-rtdb.firebaseio.com",
-      projectId: "seu-projeto",
-      storageBucket: "seu-projeto.appspot.com",
-      messagingSenderId: "1234567890",
-      appId: "1:1234567890:web:abcdef123456"
+      authDomain: "SEU_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://SEU_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "SEU_PROJECT_ID",
+      storageBucket: "SEU_PROJECT_ID.appspot.com",
+      messagingSenderId: "SEU_SENDER_ID",
+      appId: "SEU_APP_ID"
     };
 
-    // Inicializa o Firebase no cliente
-    let db = null;
-    if (firebaseConfig.apiKey !== "SUA_API_KEY") {
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.database();
-    }
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    const ADMIN_PASSWORD = "1234"; 
-    let participants = {}; 
-    let availableTicketsPool = [];
-    let isSpinning = false;
-    let currentConfig = { coinsPerTicket: 1, maxTicketsLimit: 100000 };
+    // 2. Conexão Socket.io
+    const socket = io();
 
-    // Embaralhamento (Fisher-Yates)
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
+    // Estado da aplicação
+    let participantes = [];
+    let totalMoedasAcumuladas = 0;
 
-    function generateRandomTicketsPool() {
-      const numbers = [];
-      for (let i = 1000; i < 101000; i++) {
-        numbers.push(i);
-      }
-      availableTicketsPool = shuffleArray(numbers);
-    }
+    const statusConexao = document.getElementById('statusConexao');
+    const tabelaParticipantes = document.getElementById('tabelaParticipantes');
+    const totalParticipantesEl = document.getElementById('totalParticipantes');
 
-    generateRandomTicketsPool();
-
-    // Modo de visualização (Público vs Admin)
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPublicView = urlParams.get('view') === 'public';
-
-    function checkPassword(e) {
-      if (e) e.preventDefault();
-      const inputPass = document.getElementById('passwordInput').value;
-      if (inputPass === ADMIN_PASSWORD) {
-        document.getElementById('loginModal').classList.add('hidden');
-        sessionStorage.setItem('admin_authenticated', 'true');
-      } else {
-        alert('Senha incorreta! Tente novamente.');
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const publicUrl = window.location.origin + window.location.pathname + '?view=public';
-      document.getElementById('publicUrlInput').value = publicUrl;
-
-      if (isPublicView) {
-        document.getElementById('loginModal').classList.add('hidden');
-        document.getElementById('adminSection').style.display = 'none';
-        document.getElementById('adminHeaderControls').style.display = 'none';
-        document.getElementById('publicLinkCard').style.display = 'none';
-        document.getElementById('prizeInputContainer').style.display = 'none';
-        document.getElementById('prizeDisplay').classList.remove('hidden');
-      } else if (sessionStorage.getItem('admin_authenticated') === 'true') {
-        document.getElementById('loginModal').classList.add('hidden');
-      }
-
-      // Conexão com Firebase para recarregar dados automaticamente após F5
-      if (db) {
-        db.ref('participants').on('value', (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            participants = data;
-            rebuildTicketsPoolAndAssign();
-          } else {
-            participants = {};
-            updateTable();
-          }
-        });
-
-        db.ref('prize').on('value', (snapshot) => {
-          const prizeText = snapshot.val() || "";
-          document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
-          if (!isPublicView) {
-            document.getElementById('prizeInput').value = prizeText;
-          }
-        });
-
-        db.ref('config').on('value', (snapshot) => {
-          const configData = snapshot.val();
-          if (configData) {
-            applyConfigUpdate(configData);
-          }
-        });
-      }
+    // Eventos de Conexão
+    socket.on('connect', () => {
+      statusConexao.innerText = "Conectado ao Servidor";
+      statusConexao.className = "text-xs px-3 py-1 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700";
     });
 
-    function sendConfigUpdate() {
-      const coinsPerTicket = parseInt(document.getElementById('coinsPerTicket').value) || 1;
-      const maxTicketsLimit = parseInt(document.getElementById('maxTicketsLimit').value) || 100000;
-      
-      const configData = { coinsPerTicket, maxTicketsLimit };
-      socket.emit('updateConfig', configData);
-      applyConfigUpdate(configData);
-    }
-
-    function applyConfigUpdate(configData) {
-      currentConfig.coinsPerTicket = configData.coinsPerTicket || 1;
-      currentConfig.maxTicketsLimit = configData.maxTicketsLimit || 100000;
-
-      document.getElementById('currentCoinsRuleDisplay').innerText = currentConfig.coinsPerTicket;
-
-      if (!isPublicView) {
-        document.getElementById('coinsPerTicket').value = currentConfig.coinsPerTicket;
-        document.getElementById('maxTicketsLimit').value = currentConfig.maxTicketsLimit;
-      }
-
-      rebuildTicketsPoolAndAssign();
-    }
-
-    socket.on('configUpdated', (configData) => {
-      applyConfigUpdate(configData);
+    socket.on('disconnect', () => {
+      statusConexao.innerText = "Desconectado";
+      statusConexao.className = "text-xs px-3 py-1 rounded-full bg-red-900/60 text-red-300 border border-red-700";
     });
 
-    function rebuildTicketsPoolAndAssign() {
-      generateRandomTicketsPool();
-      const coinsPerTicket = currentConfig.coinsPerTicket || 1;
-      
-      Object.keys(participants).forEach(username => {
-        const userCoins = participants[username].coins || 0;
-        const targetTicketsCount = Math.floor(userCoins / coinsPerTicket);
-        participants[username].tickets = [];
-        
-        while (participants[username].tickets.length < targetTicketsCount && availableTicketsPool.length > 0) {
-          participants[username].tickets.push(availableTicketsPool.pop());
-        }
-      });
+    // Sincronização em Tempo Real via Firebase e Socket
+    db.ref('participantes').on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      participantes = Object.keys(data).map(key => ({
+        id: key,
+        ...data[key]
+      }));
 
-      updateTable();
-    }
-
-    function updatePrize() {
-      const prizeText = document.getElementById('prizeInput').value;
-      socket.emit('updatePrize', prizeText);
-    }
-
-    socket.on('prizeUpdated', (prizeText) => {
-      document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
-      if (!isPublicView) {
-        document.getElementById('prizeInput').value = prizeText;
-      }
+      renderizarTabela();
+      calcularTotalMoedas();
+      desenharRoleta();
     });
 
-    function copyPublicLink() {
-      const input = document.getElementById('publicUrlInput');
-      input.select();
-      document.execCommand('copy');
-      
-      const btn = document.getElementById('btnCopy');
-      btn.innerText = 'Copiado! ✅';
-      btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
-      btn.classList.add('bg-green-600');
+    // Renderiza a Tabela
+    function renderizarTabela() {
+      tabelaParticipantes.innerHTML = '';
+      totalParticipantesEl.innerText = participantes.length;
 
-      setTimeout(() => {
-        btn.innerText = 'Copiar Link';
-        btn.classList.remove('bg-green-600');
-        btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
-      }, 2000);
-    }
-
-    socket.on('giftReceived', (data) => {
-      addGiftToFeed(data.username, data.coins);
-      if (!db) {
-        registerContribution(data.username, data.coins);
-      }
-    });
-
-    socket.on('clearDataReceived', () => {
-      resetLocalData();
-    });
-
-    function addGiftToFeed(username, coins) {
-      if (isPublicView) return;
-      const feed = document.getElementById('giftFeed');
-      if (feed.children[0] && feed.children[0].tagName === 'P') {
-        feed.innerHTML = '';
-      }
-      const item = document.createElement('div');
-      item.className = 'bg-slate-900 p-2.5 rounded border-l-4 border-emerald-500 flex justify-between items-center';
-      item.innerHTML = `
-        <span class="font-bold text-slate-200">@${username}</span>
-        <span class="text-emerald-400 font-extrabold">+${coins} moeda(s)</span>
-      `;
-      feed.prepend(item);
-    }
-
-    function registerContribution(username, coins) {
-      const coinsPerTicket = currentConfig.coinsPerTicket || 1;
-      
-      if (!participants[username]) {
-        participants[username] = { coins: 0, tickets: [] };
-      }
-
-      participants[username].coins += Number(coins);
-      const targetTicketsCount = Math.floor(participants[username].coins / coinsPerTicket);
-      
-      while (participants[username].tickets.length < targetTicketsCount && availableTicketsPool.length > 0) {
-        const randomTicketNumber = availableTicketsPool.pop();
-        participants[username].tickets.push(randomTicketNumber);
-      }
-
-      updateTable();
-    }
-
-    function updateTable() {
-      const tbody = document.getElementById('participantsTable');
-      tbody.innerHTML = '';
-
-      let totalTickets = 0;
-      const keys = Object.keys(participants);
-
-      if (keys.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-500">Nenhum participante registrado.</td></tr>';
-        document.getElementById('totalTicketsCount').innerText = 'Total Bilhetes: 0';
-        return;
-      }
-
-      keys.forEach(username => {
-        const data = participants[username];
-        const userTickets = data.tickets || [];
-        totalTickets += userTickets.length;
-
-        const sortedTickets = [...userTickets].sort((a, b) => a - b);
-        const numbersHtml = sortedTickets.length > 0 
-          ? sortedTickets.map(num => `<span class="inline-block bg-blue-950 text-blue-300 border border-blue-700 px-1.5 py-0.5 rounded text-xs font-bold mr-1 mb-1">#${num}</span>`).join('')
-          : '<span class="text-slate-500 text-xs italic">Sem números</span>';
-
+      participantes.forEach(p => {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-700/50 transition participant-row';
-        tr.setAttribute('data-username', username.toLowerCase());
+        tr.className = 'hover:bg-gray-800/50 transition';
         tr.innerHTML = `
-          <td class="p-3 font-bold text-slate-200">@${username}</td>
-          <td class="p-3 text-center text-slate-400">${data.coins || 0}</td>
-          <td class="p-3">${numbersHtml}</td>
+          <td class="p-2 font-medium text-white">${p.nome || p.username}</td>
+          <td class="p-2 text-center text-yellow-400 font-bold">${p.moedas || 0}</td>
+          <td class="p-2 text-right text-amber-500 font-bold">${p.tickets || 1}</td>
         `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('totalTicketsCount').innerText = `Total Bilhetes: ${totalTickets}`;
-      filterParticipants();
-    }
-
-    function filterParticipants() {
-      const query = document.getElementById('searchInput').value.toLowerCase().trim();
-      const rows = document.querySelectorAll('.participant-row');
-
-      rows.forEach(row => {
-        const username = row.getAttribute('data-username');
-        row.style.display = username.includes(query) ? '' : 'none';
+        tabelaParticipantes.appendChild(tr);
       });
     }
 
-    // ROLETA DE SORTEIO (10s)
-    function startDraw() {
-      if (isSpinning || isPublicView) return;
+    // 3. Lógica da Barra de Progresso da Meta
+    function calcularTotalMoedas() {
+      // Soma o total de moedas registradas entre os participantes ativas
+      totalMoedasAcumuladas = participantes.reduce((acc, p) => acc + Number(p.moedas || 0), 0);
+      atualizarBarraMeta();
+    }
 
-      let maxLimit = currentConfig.maxTicketsLimit || 100000;
-      if (maxLimit > 100000) maxLimit = 100000;
+    function atualizarBarraMeta() {
+      const inputMeta = document.getElementById('inputMetaMoedas');
+      const barra = document.getElementById('barraProgressoMeta');
+      const textoStatus = document.getElementById('textoStatusMeta');
 
-      let allTickets = [];
-      Object.keys(participants).forEach(username => {
-        const tickets = participants[username].tickets || [];
-        tickets.forEach(ticketNum => {
-          allTickets.push({ number: ticketNum, username: username });
-        });
-      });
+      if (!inputMeta || !barra || !textoStatus) return;
 
-      if (allTickets.length === 0) {
-        alert('Não há Números da Sorte para realizar o sorteio!');
+      const meta = Math.max(1, parseInt(inputMeta.value) || 1);
+      const porcentagem = Math.min(100, Math.round((totalMoedasAcumuladas / meta) * 100));
+
+      // Atualiza a largura da barra horizontal
+      barra.style.width = `${porcentagem}%`;
+
+      // Atualiza visual quando a meta é batida
+      if (porcentagem >= 100) {
+        barra.className = 'bg-gradient-to-r from-emerald-500 to-green-400 h-full rounded-full shadow-lg shadow-emerald-500/20';
+        textoStatus.innerText = `${totalMoedasAcumuladas} / ${meta} (100% - META ATINGIDA!)`;
+        textoStatus.className = 'font-bold text-emerald-400';
+      } else {
+        barra.className = 'bg-gradient-to-r from-yellow-500 to-amber-400 h-full rounded-full shadow-lg';
+        textoStatus.innerText = `${totalMoedasAcumuladas} / ${meta} (${porcentagem}%)`;
+        textoStatus.className = 'font-bold text-yellow-400';
+      }
+    }
+
+    // 4. Desenhar Roleta (Canvas)
+    const canvas = document.getElementById('roletaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function desenharRoleta() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const centro = canvas.width / 2;
+      const raio = centro - 10;
+
+      if (participantes.length === 0) {
+        ctx.beginPath();
+        ctx.arc(centro, centro, raio, 0, 2 * Math.PI);
+        ctx.fillStyle = '#1f2937';
+        ctx.fill();
+        ctx.strokeStyle = '#374151';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Aguardando participantes...', centro, centro);
         return;
       }
 
-      let poolForDraw = shuffleArray([...allTickets]);
-      if (poolForDraw.length > maxLimit) {
-        poolForDraw = poolForDraw.slice(0, maxLimit);
-      }
+      const fatias = participantes.length;
+      const anguloFatia = (2 * Math.PI) / fatias;
+      const cores = ['#eab308', '#ca8a04', '#a16207', '#854d0e', '#713f12'];
 
-      isSpinning = true;
-      document.getElementById('btnDraw').disabled = true;
+      participantes.forEach((p, i) => {
+        const anguloInicio = i * anguloFatia;
+        const anguloFim = anguloInicio + anguloFatia;
 
-      const winnerIndex = Math.floor(Math.random() * poolForDraw.length);
-      const winningTicket = poolForDraw[winnerIndex];
+        ctx.beginPath();
+        ctx.moveTo(centro, centro);
+        ctx.arc(centro, centro, raio, anguloInicio, anguloFim);
+        ctx.fillStyle = cores[i % cores.length];
+        ctx.fill();
+        ctx.strokeStyle = '#111827';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-      const track = document.getElementById('rouletteTrack');
-      track.style.transition = 'none';
-      track.style.transform = 'translateX(0px)';
-      track.innerHTML = '';
-
-      const totalCards = 110;
-      const targetCardIndex = 100;
-
-      for (let i = 0; i < totalCards; i++) {
-        const card = document.createElement('div');
-        card.className = 'roulette-card';
-        
-        let cardData = (i === targetCardIndex) ? winningTicket : poolForDraw[Math.floor(Math.random() * poolForDraw.length)];
-        
-        card.innerHTML = `
-          <span class="text-xl font-black text-yellow-400">#${cardData.number}</span>
-          <span class="text-xs text-slate-300 truncate max-w-[120px]">@${cardData.username}</span>
-        `;
-        track.appendChild(card);
-      }
-
-      const totalDuration = 10;
-      const cardWidth = 156;
-      const containerWidth = document.querySelector('.roulette-container').offsetWidth;
-      const stopPosition = (targetCardIndex * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
-
-      setTimeout(() => {
-        track.style.transition = `transform ${totalDuration}s cubic-bezier(0.1, 0.9, 0.1, 1)`;
-        track.style.transform = `translateX(-${stopPosition}px)`;
-      }, 50);
-
-      setTimeout(() => {
-        showWinner(winningTicket);
-        isSpinning = false;
-        document.getElementById('btnDraw').disabled = false;
-      }, (totalDuration * 1000) + 300);
-    }
-
-    function showWinner(ticket) {
-      document.getElementById('winnerNumber').innerText = `#${ticket.number}`;
-      document.getElementById('winnerName').innerText = `@${ticket.username}`;
-      document.getElementById('winnerModal').classList.remove('hidden');
-
-      confetti({
-        particleCount: 150,
-        spread: 90,
-        origin: { y: 0.6 }
+        // Nome
+        ctx.save();
+        ctx.translate(centro, centro);
+        ctx.rotate(anguloInicio + anguloFatia / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(p.nome || p.username, raio - 20, 5);
+        ctx.restore();
       });
     }
 
-    function closeWinnerModal() {
-      document.getElementById('winnerModal').classList.add('hidden');
-    }
-
-    function clearData() {
-      if (confirm('Tem certeza que deseja zerar todos os dados e reiniciar os Números da Sorte para TODOS os participantes?')) {
-        socket.emit('clearData');
-        resetLocalData();
+    // Ações
+    function realizarSorteio() {
+      if (participantes.length === 0) {
+        alert('Adicione ao menos 1 participante para realizar o sorteio!');
+        return;
       }
+      socket.emit('iniciarSorteio');
     }
 
-    function resetLocalData() {
-      participants = {};
-      generateRandomTicketsPool();
-      updateTable();
-      if (!isPublicView) {
-        document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
-        document.getElementById('rouletteTrack').innerHTML = '<div class="roulette-card">Aguardando...</div>';
+    function limparParticipantes() {
+      if (confirm('Tem certeza que deseja limpar todos os participantes?')) {
+        db.ref('participantes').remove();
       }
     }
   </script>
