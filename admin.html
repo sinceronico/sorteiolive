@@ -263,29 +263,24 @@
     let isSpinning = false;
     let currentConfig = { coinsPerTicket: 1, maxTicketsLimit: 100000 };
 
-    // Função de Embaralhamento Determinístico
-    function generateDeterminesticTicketsPool() {
+    // Embaralhamento (Fisher-Yates)
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function generateRandomTicketsPool() {
       const numbers = [];
       for (let i = 1000; i < 101000; i++) {
         numbers.push(i);
       }
-      
-      // Shuffle determinístico simples usando Pseudo-Random com semente fixa
-      let seed = 12345;
-      function pseudoRandom() {
-        let x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-      }
-
-      for (let i = numbers.length - 1; i > 0; i--) {
-        const j = Math.floor(pseudoRandom() * (i + 1));
-        [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-      }
-
-      availableTicketsPool = numbers;
+      availableTicketsPool = shuffleArray(numbers);
     }
 
-    generateDeterminesticTicketsPool();
+    generateRandomTicketsPool();
 
     // Modo de visualização (Público vs Admin)
     const urlParams = new URLSearchParams(window.location.search);
@@ -317,15 +312,8 @@
         document.getElementById('loginModal').classList.add('hidden');
       }
 
-      // Conexão com Firebase para carregar primeiro a config e depois os participantes
+      // Conexão com Firebase para recarregar dados automaticamente após F5
       if (db) {
-        db.ref('config').on('value', (snapshot) => {
-          const configData = snapshot.val();
-          if (configData) {
-            applyConfigUpdate(configData);
-          }
-        });
-
         db.ref('participants').on('value', (snapshot) => {
           const data = snapshot.val();
           if (data) {
@@ -342,6 +330,13 @@
           document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
           if (!isPublicView) {
             document.getElementById('prizeInput').value = prizeText;
+          }
+        });
+
+        db.ref('config').on('value', (snapshot) => {
+          const configData = snapshot.val();
+          if (configData) {
+            applyConfigUpdate(configData);
           }
         });
       }
@@ -375,13 +370,10 @@
     });
 
     function rebuildTicketsPoolAndAssign() {
-      generateDeterminesticTicketsPool();
+      generateRandomTicketsPool();
       const coinsPerTicket = currentConfig.coinsPerTicket || 1;
       
-      // Ordena usernames para garantir atribuição idêntica em ambos os painéis
-      const sortedUsernames = Object.keys(participants).sort();
-
-      sortedUsernames.forEach(username => {
+      Object.keys(participants).forEach(username => {
         const userCoins = participants[username].coins || 0;
         const targetTicketsCount = Math.floor(userCoins / coinsPerTicket);
         participants[username].tickets = [];
@@ -450,12 +442,21 @@
     }
 
     function registerContribution(username, coins) {
+      const coinsPerTicket = currentConfig.coinsPerTicket || 1;
+      
       if (!participants[username]) {
         participants[username] = { coins: 0, tickets: [] };
       }
 
       participants[username].coins += Number(coins);
-      rebuildTicketsPoolAndAssign();
+      const targetTicketsCount = Math.floor(participants[username].coins / coinsPerTicket);
+      
+      while (participants[username].tickets.length < targetTicketsCount && availableTicketsPool.length > 0) {
+        const randomTicketNumber = availableTicketsPool.pop();
+        participants[username].tickets.push(randomTicketNumber);
+      }
+
+      updateTable();
     }
 
     function updateTable() {
@@ -526,7 +527,7 @@
         return;
       }
 
-      let poolForDraw = [...allTickets];
+      let poolForDraw = shuffleArray([...allTickets]);
       if (poolForDraw.length > maxLimit) {
         poolForDraw = poolForDraw.slice(0, maxLimit);
       }
@@ -600,7 +601,7 @@
 
     function resetLocalData() {
       participants = {};
-      generateDeterminesticTicketsPool();
+      generateRandomTicketsPool();
       updateTable();
       if (!isPublicView) {
         document.getElementById('giftFeed').innerHTML = '<p class="text-slate-500 italic">Nenhum presente recebido ainda nesta sessão...</p>';
