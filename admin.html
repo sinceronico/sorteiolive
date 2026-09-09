@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel da Premios - TikTok Live</title>
+  <title>Painel de Premios - TikTok Live</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Socket.IO -->
@@ -83,7 +83,7 @@
   <!-- Cabeçalho -->
   <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-700 pb-4">
     <div>
-      <h1 class="text-3xl font-extrabold text-blue-400">🎟️ Painel de Rifa & Sorteio Live</h1>
+      <h1 class="text-3xl font-extrabold text-blue-400">🎟️  de Rifa & Sorteio Live</h1>
       <p class="text-xs text-slate-400 mt-1">Acompanhamento e sorteios de bilhetes em tempo real</p>
     </div>
     <div class="flex items-center gap-3" id="adminHeaderControls">
@@ -147,9 +147,9 @@
         </div>
 
         <!-- ======================================================= -->
-        <!-- BARRA DE PROGRESSO DE META (NOVO: LOGO ABAIXO DO BOTÃO) -->
+        <!-- BARRA DE PROGRESSO DE META (LOCALIZADA LOGO ABAIXO DO BOTÃO) -->
         <!-- ======================================================= -->
-        <div class="mt-6 p-4 bg-slate-900/80 rounded-xl border border-slate-700 shadow-inner">
+        <div id="goalBarContainer" class="mt-6 p-4 bg-slate-900 rounded-xl border border-slate-700 shadow-inner">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
             <label for="inputMetaMoedas" class="text-sm font-bold text-yellow-400 flex items-center gap-1.5">
               <span>🎯</span> Meta de Moedas da Live:
@@ -164,12 +164,12 @@
                 oninput="updateGoalConfig()"
                 class="bg-slate-950 border border-slate-700 rounded px-3 py-1 text-sm font-bold text-white w-28 text-center focus:outline-none focus:border-yellow-500"
               >
-              <span class="text-xs text-slate-400">moeda(s)</span>
+              <span class="text-xs text-slate-400">moedas</span>
             </div>
           </div>
 
           <div class="flex justify-between items-center text-xs mb-1.5 font-bold">
-            <span class="text-slate-400">Progresso do Sorteio</span>
+            <span class="text-slate-400">Progresso Atual</span>
             <span id="textoStatusMeta" class="text-yellow-400">0 / 1000 (0%)</span>
           </div>
 
@@ -185,7 +185,7 @@
 
       </div>
 
-      <!-- PAINEL DUPLO: CONFIGURAÇÕES E FEED DE PRESENTES -->
+      <!--  DUPLO: CONFIGURAÇÕES E FEED DE PRESENTES -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- CARD DE REGRAS DE CONVERSÃO E LIMITE DE BILHETES -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
@@ -288,20 +288,18 @@
       appId: "1:1234567890:web:abcdef123456"
     };
 
-    // Inicializa o Firebase no cliente
     let db = null;
     if (firebaseConfig.apiKey !== "SUA_API_KEY") {
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
     }
 
-    const ADMIN_PASSWORD = "5879"; 
+    const ADMIN_PASSWORD = "1234"; 
     let participants = {}; 
     let availableTicketsPool = [];
     let isSpinning = false;
     let currentConfig = { coinsPerTicket: 1, maxTicketsLimit: 100000, goalCoins: 1000 };
 
-    // Embaralhamento (Fisher-Yates)
     function shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -320,7 +318,6 @@
 
     generateRandomTicketsPool();
 
-    // Modo de visualização (Público vs Admin)
     const urlParams = new URLSearchParams(window.location.search);
     const isPublicView = urlParams.get('view') === 'public';
 
@@ -330,6 +327,7 @@
       if (inputPass === ADMIN_PASSWORD) {
         document.getElementById('loginModal').classList.add('hidden');
         sessionStorage.setItem('admin_authenticated', 'true');
+        updateGoalProgressBar();
       } else {
         alert('Senha incorreta! Tente novamente.');
       }
@@ -337,7 +335,8 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       const publicUrl = window.location.origin + window.location.pathname + '?view=public';
-      document.getElementById('publicUrlInput').value = publicUrl;
+      const inputPublic = document.getElementById('publicUrlInput');
+      if (inputPublic) inputPublic.value = publicUrl;
 
       if (isPublicView) {
         document.getElementById('loginModal').classList.add('hidden');
@@ -350,7 +349,6 @@
         document.getElementById('loginModal').classList.add('hidden');
       }
 
-      // Conexão com Firebase para recarregar dados automaticamente após F5
       if (db) {
         db.ref('participants').on('value', (snapshot) => {
           const data = snapshot.val();
@@ -366,7 +364,7 @@
         db.ref('prize').on('value', (snapshot) => {
           const prizeText = snapshot.val() || "";
           document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
-          if (!isPublicView) {
+          if (!isPublicView && document.getElementById('prizeInput')) {
             document.getElementById('prizeInput').value = prizeText;
           }
         });
@@ -378,6 +376,9 @@
           }
         });
       }
+
+      // Força a renderização inicial da barra
+      updateGoalProgressBar();
     });
 
     function updateGoalConfig() {
@@ -399,12 +400,13 @@
       currentConfig.maxTicketsLimit = configData.maxTicketsLimit || 100000;
       currentConfig.goalCoins = configData.goalCoins || 1000;
 
-      document.getElementById('currentCoinsRuleDisplay').innerText = currentConfig.coinsPerTicket;
+      const ruleDisplay = document.getElementById('currentCoinsRuleDisplay');
+      if (ruleDisplay) ruleDisplay.innerText = currentConfig.coinsPerTicket;
 
       if (!isPublicView) {
-        document.getElementById('coinsPerTicket').value = currentConfig.coinsPerTicket;
-        document.getElementById('maxTicketsLimit').value = currentConfig.maxTicketsLimit;
-        document.getElementById('inputMetaMoedas').value = currentConfig.goalCoins;
+        if (document.getElementById('coinsPerTicket')) document.getElementById('coinsPerTicket').value = currentConfig.coinsPerTicket;
+        if (document.getElementById('maxTicketsLimit')) document.getElementById('maxTicketsLimit').value = currentConfig.maxTicketsLimit;
+        if (document.getElementById('inputMetaMoedas')) document.getElementById('inputMetaMoedas').value = currentConfig.goalCoins;
       }
 
       rebuildTicketsPoolAndAssign();
@@ -466,7 +468,7 @@
 
     socket.on('prizeUpdated', (prizeText) => {
       document.getElementById('prizeDisplay').innerText = prizeText || "Nenhum prêmio definido";
-      if (!isPublicView) {
+      if (!isPublicView && document.getElementById('prizeInput')) {
         document.getElementById('prizeInput').value = prizeText;
       }
     });
